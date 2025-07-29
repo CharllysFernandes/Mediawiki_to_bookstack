@@ -1,6 +1,9 @@
 # Ignorar arquivos de configuração com dados sensíveis
 settings.json
 
+# Ignorar cache de páginas
+pages_cache.json
+
 # Ignorar backups de configuração
 *.bak
 *.backup

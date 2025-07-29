@@ -201,3 +201,13 @@
 2025-07-29 01:18:27,988 - MediaWikiApp - INFO - Extração markdown completa: 3 páginas extraídas
 2025-07-29 01:18:30,955 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_011830
 2025-07-29 01:18:31,140 - MediaWikiApp - INFO - Salvamento completo: 3 arquivos Markdown salvos em 'exported_markdown_20250729_011830'
+2025-07-29 11:39:03,564 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 11:39:03,570 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 11:39:03,570 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 11:39:05,412 - MediaWikiApp - INFO - ERRO: Falha na autenticação
+2025-07-29 11:39:15,815 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 11:39:15,830 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 11:39:15,831 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 11:39:17,040 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 11:39:22,460 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 11:40:55,126 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki

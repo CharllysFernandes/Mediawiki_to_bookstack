@@ -5,12 +5,14 @@ from datetime import datetime
 from src.mediawiki_client import MediaWikiClient
 from src.logger import Logger
 from src.config_manager import ConfigManager
+from src.pages_cache import PagesCache
 
 class MediaWikiApp:
     def __init__(self):
         self.client = None
         self.logger = Logger()
         self.config_manager = ConfigManager()
+        self.pages_cache = PagesCache()
         self.is_connected = False
         
         # Configurar tema
@@ -117,18 +119,36 @@ class MediaWikiApp:
         self.list_prefixes_btn = ctk.CTkButton(connected_buttons_frame, text="Listar Prefixos", command=self.list_page_prefixes)
         self.list_prefixes_btn.pack(side="left", padx=10, pady=10)
         
-        self.list_pages_btn = ctk.CTkButton(connected_buttons_frame, text="Listar Páginas", command=self.list_all_pages)
+        # Frame para botões de páginas
+        pages_buttons_frame = ctk.CTkFrame(self.connected_frame)
+        pages_buttons_frame.pack(fill="x", padx=20, pady=5)
+        
+        self.load_cache_btn = ctk.CTkButton(pages_buttons_frame, text="Carregar Cache", command=self.load_pages_cache)
+        self.load_cache_btn.pack(side="left", padx=10, pady=10)
+        
+        self.refresh_pages_btn = ctk.CTkButton(pages_buttons_frame, text="Atualizar da API", command=self.refresh_pages_from_api)
+        self.refresh_pages_btn.pack(side="left", padx=10, pady=10)
+        
+        self.list_pages_btn = ctk.CTkButton(pages_buttons_frame, text="Mostrar Páginas", command=self.show_cached_pages)
         self.list_pages_btn.pack(side="left", padx=10, pady=10)
         
-        self.extract_pages_btn = ctk.CTkButton(connected_buttons_frame, text="Extrair Markdown", command=self.extract_all_content)
+        # Frame para ações de extração
+        extraction_buttons_frame = ctk.CTkFrame(self.connected_frame)
+        extraction_buttons_frame.pack(fill="x", padx=20, pady=5)
+        
+        self.extract_pages_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair Pendentes", command=self.extract_pending_content)
         self.extract_pages_btn.pack(side="left", padx=10, pady=10)
         
         # Adicionar botão para salvar arquivos
-        self.save_files_btn = ctk.CTkButton(connected_buttons_frame, text="Salvar Markdown", 
+        self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Markdown", 
                                           command=self.save_extracted_files, state="disabled")
         self.save_files_btn.pack(side="left", padx=10, pady=10)
         
-        self.logout_btn = ctk.CTkButton(connected_buttons_frame, text="Sair", command=self.logout, 
+        self.reset_status_btn = ctk.CTkButton(extraction_buttons_frame, text="Reset Status", 
+                                            command=self.reset_pages_status, fg_color="orange", hover_color="darkorange")
+        self.reset_status_btn.pack(side="left", padx=10, pady=10)
+        
+        self.logout_btn = ctk.CTkButton(extraction_buttons_frame, text="Sair", command=self.logout, 
                                        fg_color="red", hover_color="darkred")
         self.logout_btn.pack(side="right", padx=10, pady=10)
         
@@ -415,64 +435,166 @@ class MediaWikiApp:
         finally:
             self.root.after(0, lambda: self.list_prefixes_btn.configure(state="normal"))
     
-    def list_all_pages(self):
-        """Lista todas as páginas da wiki"""
+    def load_pages_cache(self):
+        """Carrega páginas do cache local"""
+        try:
+            if self.pages_cache.load_cache():
+                stats = self.pages_cache.get_statistics()
+                
+                # Mostrar estatísticas do cache
+                stats_text = f"""=== CACHE DE PÁGINAS CARREGADO ===
+Total de páginas: {stats['total_pages']:,}
+Páginas pendentes: {stats['pending_pages']:,}
+Páginas processadas: {stats['processed_pages']:,}
+Progresso: {stats['progress_percentage']:.1f}%
+Última atualização: {stats['last_updated'] or 'Nunca'}
+
+=== PRIMEIRAS PÁGINAS ===
+"""
+                
+                # Mostrar algumas páginas como exemplo
+                sample_pages = self.pages_cache.pages_data[:10]
+                for page in sample_pages:
+                    status_text = "✓ Processada" if page['status'] == 1 else "⏳ Pendente"
+                    stats_text += f"\n{status_text} - {page['title']} (ID: {page['pageid']})"
+                
+                if len(self.pages_cache.pages_data) > 10:
+                    stats_text += f"\n... e mais {len(self.pages_cache.pages_data) - 10} páginas"
+                
+                self.content_textbox.delete("1.0", "end")
+                self.content_textbox.insert("1.0", stats_text)
+                
+                # Criar checkboxes para páginas pendentes
+                self._create_cached_page_checkboxes()
+                
+                self.update_status(f"Cache carregado: {stats['total_pages']:,} páginas", "green")
+                self.log_message(f"Cache carregado com {stats['total_pages']} páginas")
+                
+            else:
+                self.content_textbox.delete("1.0", "end")
+                self.content_textbox.insert("1.0", "Nenhum cache encontrado. Use 'Atualizar da API' para criar o cache inicial.")
+                self.update_status("Cache não encontrado", "orange")
+                self.log_message("Nenhum cache de páginas encontrado")
+                
+        except Exception as e:
+            error_msg = f"ERRO ao carregar cache: {str(e)}"
+            self.content_textbox.delete("1.0", "end")
+            self.content_textbox.insert("1.0", error_msg)
+            self.update_status("Erro ao carregar cache", "red")
+            self.log_message(error_msg)
+    
+    def refresh_pages_from_api(self):
+        """Atualiza o cache com páginas da API"""
         if not self.client:
             return
             
-        self.list_pages_btn.configure(state="disabled")
-        self.update_status("Carregando páginas...", "yellow")
-        self.content_textbox.delete("1.0", "end")
-        self.progress_bar.set(0)
-        self.progress_label.configure(text="Iniciando...")
-        
-        threading.Thread(target=self._list_pages_worker, daemon=True).start()
-        
-    def _list_pages_worker(self):
-        """Worker thread para listar páginas"""
+        self.refresh_pages_btn.configure(state="disabled")
+        self.update_status("Atualizando cache da API...", "yellow")
+        threading.Thread(target=self._refresh_pages_worker, daemon=True).start()
+    
+    def _refresh_pages_worker(self):
+        """Worker thread para atualizar cache da API"""
         try:
-            self.log_message("Obtendo lista de todas as páginas...")
+            self.log_message("Buscando páginas da API para atualizar cache...")
             
             def progress_callback(total, batch):
-                self.root.after(0, lambda: self.progress_label.configure(text=f"Carregadas: {total} páginas"))
+                self.root.after(0, lambda: self.progress_label.configure(text=f"API: {total} páginas carregadas"))
             
-            pages = self.client.get_all_pages(callback=progress_callback)
+            # Buscar páginas da API
+            api_pages = self.client.get_all_pages(callback=progress_callback)
             
-            if pages:
-                # Armazenar páginas
-                self.current_pages = pages
+            if api_pages:
+                # Atualizar cache preservando status existente
+                new_pages_count = self.pages_cache.update_pages_from_api(api_pages)
                 
-                # Criar checkboxes para cada página
-                self.root.after(0, lambda: self._create_page_checkboxes(pages))
-                self.root.after(0, lambda: self.update_status(f"{len(pages)} páginas encontradas", "green"))
-                self.root.after(0, lambda: self.progress_bar.set(1.0))
+                # Remover páginas que não existem mais
+                current_pageids = [page.get('pageid') for page in api_pages]
+                self.pages_cache.remove_deleted_pages(current_pageids)
                 
-                self.log_message(f"Encontradas {len(pages)} páginas na wiki")
-                
+                # Salvar cache atualizado
+                if self.pages_cache.save_cache():
+                    stats = self.pages_cache.get_statistics()
+                    
+                    result_text = f"""=== CACHE ATUALIZADO COM SUCESSO ===
+Total de páginas: {stats['total_pages']:,}
+Novas páginas adicionadas: {new_pages_count:,}
+Páginas pendentes: {stats['pending_pages']:,}
+Páginas processadas: {stats['processed_pages']:,}
+Progresso geral: {stats['progress_percentage']:.1f}%
+
+Cache salvo em: config/pages_cache.json
+"""
+                    
+                    self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+                    self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
+                    self.root.after(0, lambda: self.update_status(f"Cache atualizado: {stats['total_pages']:,} páginas", "green"))
+                    self.root.after(0, lambda: self.progress_bar.set(1.0))
+                    
+                    # Atualizar checkboxes
+                    self.root.after(0, self._create_cached_page_checkboxes)
+                    
+                    self.log_message(f"Cache atualizado: {stats['total_pages']} páginas ({new_pages_count} novas)")
+                    
+                else:
+                    error_msg = "ERRO: Falha ao salvar cache atualizado"
+                    self.root.after(0, lambda: self.update_status("Erro ao salvar cache", "red"))
+                    self.log_message(error_msg)
+                    
             else:
-                error_msg = "Nenhuma página encontrada na wiki."
-                self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
-                self.root.after(0, lambda: self.update_status("Nenhuma página encontrada", "orange"))
-                self.log_message("AVISO: Nenhuma página retornada pela API")
+                error_msg = "ERRO: Nenhuma página retornada pela API"
+                self.root.after(0, lambda: self.update_status("API não retornou páginas", "red"))
+                self.log_message(error_msg)
                 
         except Exception as e:
-            error_msg = f"ERRO ao listar páginas: {str(e)}"
-            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
-            self.root.after(0, lambda: self.update_status("Erro ao carregar páginas", "red"))
+            error_msg = f"ERRO ao atualizar cache: {str(e)}"
+            self.root.after(0, lambda: self.update_status("Erro na atualização", "red"))
             self.log_message(error_msg)
         finally:
-            self.root.after(0, lambda: self.list_pages_btn.configure(state="normal"))
+            self.root.after(0, lambda: self.refresh_pages_btn.configure(state="normal"))
             self.root.after(0, lambda: self.progress_label.configure(text=""))
     
-    def _create_page_checkboxes(self, pages):
-        """Cria checkboxes para seleção de páginas"""
+    def show_cached_pages(self):
+        """Mostra páginas do cache com filtros"""
+        if not self.pages_cache.pages_data:
+            self.load_pages_cache()
+            return
+        
+        stats = self.pages_cache.get_statistics()
+        pending_pages = self.pages_cache.get_pending_pages()
+        
+        # Criar checkboxes apenas para páginas pendentes (mais eficiente)
+        self._create_cached_page_checkboxes()
+        
+        # Mostrar estatísticas
+        stats_text = f"""=== PÁGINAS EM CACHE ===
+Total: {stats['total_pages']:,} páginas
+Pendentes: {stats['pending_pages']:,} páginas
+Processadas: {stats['processed_pages']:,} páginas
+Progresso: {stats['progress_percentage']:.1f}%
+
+Mostrando páginas pendentes para seleção...
+"""
+        
+        self.content_textbox.delete("1.0", "end")
+        self.content_textbox.insert("1.0", stats_text)
+        
+        self.update_status(f"Cache: {stats['pending_pages']:,} pendentes de {stats['total_pages']:,}", "green")
+        self.log_message(f"Exibindo cache: {stats['pending_pages']} páginas pendentes")
+    
+    def _create_cached_page_checkboxes(self):
+        """Cria checkboxes para páginas pendentes do cache"""
         # Limpar checkboxes existentes
         for checkbox in self.page_checkboxes:
             checkbox.destroy()
         self.page_checkboxes.clear()
         
-        # Criar novo checkbox para cada página
-        for i, page in enumerate(pages):
+        # Obter páginas pendentes (não processadas)
+        pending_pages = self.pages_cache.get_pending_pages()
+        
+        # Limitar exibição para não sobrecarregar interface (mostrar até 500 páginas)
+        display_pages = pending_pages[:500]
+        
+        for page in display_pages:
             title = page.get('title', 'Sem título')
             page_id = page.get('pageid', 'N/A')
             
@@ -481,56 +603,62 @@ class MediaWikiApp:
             
             # Criar frame para organizar checkbox e info da página
             page_frame = ctk.CTkFrame(self.pages_selection_frame)
-            page_frame.pack(fill="x", padx=5, pady=2)
+            page_frame.pack(fill="x", padx=5, pady=1)
+            
+            # Status icon
+            status_icon = "⏳"  # Pendente
             
             # Checkbox
             checkbox = ctk.CTkCheckBox(
                 page_frame, 
-                text=f"{title} (ID: {page_id})",
+                text=f"{status_icon} {title} (ID: {page_id})",
                 variable=var,
                 command=self.update_selected_count
             )
-            checkbox.pack(anchor="w", padx=10, pady=5)
+            checkbox.pack(anchor="w", padx=10, pady=3)
             
             # Armazenar referências
             checkbox.page_data = page
             checkbox.var = var
             self.page_checkboxes.append(checkbox)
         
+        # Mostrar aviso se há mais páginas
+        if len(pending_pages) > 500:
+            info_label = ctk.CTkLabel(
+                self.pages_selection_frame, 
+                text=f"⚠️ Mostrando 500 de {len(pending_pages)} páginas pendentes",
+                font=ctk.CTkFont(weight="bold")
+            )
+            info_label.pack(pady=5)
+        
         # Atualizar contador
         self.update_selected_count()
     
-    def select_all_pages(self):
-        """Seleciona todas as páginas"""
-        for checkbox in self.page_checkboxes:
-            checkbox.var.set(True)
-        self.update_selected_count()
+    def reset_pages_status(self):
+        """Reseta o status de todas as páginas para pendente"""
+        try:
+            self.pages_cache.reset_all_status()
+            if self.pages_cache.save_cache():
+                self.log_message("Status de todas as páginas resetado para pendente")
+                self.update_status("Status resetado", "green")
+                
+                # Atualizar interface se há páginas carregadas
+                if self.pages_cache.pages_data:
+                    self.show_cached_pages()
+            else:
+                self.log_message("ERRO: Falha ao salvar cache após reset")
+                self.update_status("Erro ao resetar", "red")
+                
+        except Exception as e:
+            error_msg = f"ERRO ao resetar status: {str(e)}"
+            self.log_message(error_msg)
+            self.update_status("Erro ao resetar", "red")
     
-    def deselect_all_pages(self):
-        """Deseleciona todas as páginas"""
-        for checkbox in self.page_checkboxes:
-            checkbox.var.set(False)
-        self.update_selected_count()
-    
-    def update_selected_count(self):
-        """Atualiza o contador de páginas selecionadas"""
-        selected_count = sum(1 for checkbox in self.page_checkboxes if checkbox.var.get())
-        total_count = len(self.page_checkboxes)
-        self.selected_count_label.configure(text=f"{selected_count}/{total_count} páginas selecionadas")
-    
-    def get_selected_pages(self):
-        """Retorna lista de páginas selecionadas"""
-        selected_pages = []
-        for checkbox in self.page_checkboxes:
-            if checkbox.var.get():
-                selected_pages.append(checkbox.page_data)
-        return selected_pages
-    
-    def extract_all_content(self):
-        """Extrai conteúdo das páginas selecionadas"""
+    def extract_pending_content(self):
+        """Extrai conteúdo apenas das páginas pendentes selecionadas"""
         if not self.client or not self.page_checkboxes:
-            self.log_message("ERRO: Liste as páginas primeiro")
-            self.update_status("Liste as páginas primeiro", "red")
+            self.log_message("ERRO: Carregue as páginas primeiro")
+            self.update_status("Carregue as páginas primeiro", "red")
             return
         
         selected_pages = self.get_selected_pages()
@@ -540,20 +668,21 @@ class MediaWikiApp:
             return
             
         self.extract_pages_btn.configure(state="disabled")
-        self.update_status("Extraindo conteúdo...", "yellow")
+        self.update_status("Extraindo páginas pendentes...", "yellow")
         self.content_textbox.delete("1.0", "end")
         self.progress_bar.set(0)
         
-        threading.Thread(target=self._extract_content_worker, args=(selected_pages,), daemon=True).start()
-        
-    def _extract_content_worker(self, selected_pages):
-        """Worker thread para extrair conteúdo diretamente em markdown"""
+        threading.Thread(target=self._extract_pending_worker, args=(selected_pages,), daemon=True).start()
+    
+    def _extract_pending_worker(self, selected_pages):
+        """Worker thread para extrair conteúdo de páginas pendentes com atualização de status"""
         try:
             page_titles = [page['title'] for page in selected_pages]
+            page_ids = [page['pageid'] for page in selected_pages]
             total_pages = len(page_titles)
             processed = 0
             
-            self.log_message(f"Iniciando extração direta em markdown de {total_pages} páginas selecionadas...")
+            self.log_message(f"Iniciando extração de {total_pages} páginas pendentes selecionadas...")
             
             def progress_callback(current_total, batch_size):
                 nonlocal processed
@@ -562,10 +691,8 @@ class MediaWikiApp:
                 self.root.after(0, lambda: self.progress_bar.set(progress))
                 self.root.after(0, lambda: self.progress_label.configure(text=f"Extraindo: {processed}/{total_pages}"))
             
-            # Extrair diretamente em formato markdown
+            # Extrair conteúdo
             expand_templates = self.expand_templates_var.get()
-            self.log_message(f"Expansão de templates: {'Ativada' if expand_templates else 'Desativada'}")
-            
             contents = self.client.get_page_content_batch(
                 page_titles, 
                 callback=progress_callback, 
@@ -573,116 +700,82 @@ class MediaWikiApp:
                 expand_templates=expand_templates
             )
             
-            # Processar resultados com categorização detalhada de erros
+            # Processar resultados e atualizar status no cache
             successful = 0
             failed = 0
-            permission_denied = 0
-            not_found = 0
-            other_errors = 0
-            error_details = []
+            processed_ids = []
+            failed_details = []
             
-            for title, content in contents.items():
+            for i, (title, content) in enumerate(contents.items()):
+                page_id = page_ids[i] if i < len(page_ids) else None
+                
                 if isinstance(content, dict) and content.get('markdown'):
+                    # Sucesso
                     successful += 1
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 1)  # Marcar como processada
+                        processed_ids.append(page_id)
                 else:
+                    # Falha
                     failed += 1
-                    if isinstance(content, str) and content.startswith("ERRO:"):
-                        error_msg = content[6:]  # Remove "ERRO: " prefix
-                        
-                        # Categorizar tipos de erro
-                        if "403" in error_msg or "Forbidden" in error_msg or "permission" in error_msg.lower():
-                            permission_denied += 1
-                            error_details.append(f"  🔒 {title}: Sem permissão de acesso")
-                        elif "404" in error_msg or "not found" in error_msg.lower() or "não encontrada" in error_msg.lower():
-                            not_found += 1
-                            error_details.append(f"  ❌ {title}: Página não encontrada")
-                        else:
-                            other_errors += 1
-                            error_details.append(f"  ⚠️ {title}: {error_msg}")
-                    else:
-                        other_errors += 1
-                        error_details.append(f"  ⚠️ {title}: Conteúdo inválido")
+                    error_msg = content if isinstance(content, str) else "Erro desconhecido"
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 0, error_msg)  # Manter pendente com erro
+                    failed_details.append(f"❌ {title}: {error_msg}")
+            
+            # Salvar cache atualizado
+            self.pages_cache.save_cache()
+            
+            # Preparar relatório
+            stats = self.pages_cache.get_statistics()
             
             summary = [
-                f"=== EXTRAÇÃO MARKDOWN COMPLETA ===",
+                f"=== EXTRAÇÃO DE PÁGINAS PENDENTES ===",
                 f"Páginas selecionadas: {total_pages}",
                 f"Extraídas com sucesso: {successful}",
                 f"Falharam: {failed}",
+                f"",
+                f"=== PROGRESSO GERAL ===",
+                f"Total no cache: {stats['total_pages']:,}",
+                f"Processadas: {stats['processed_pages']:,}",
+                f"Pendentes: {stats['pending_pages']:,}",
+                f"Progresso: {stats['progress_percentage']:.1f}%",
                 ""
             ]
             
-            # Estatísticas detalhadas de erros
-            if failed > 0:
-                summary.extend([
-                    "=== ESTATÍSTICAS DE ERROS ===",
-                    f"Sem permissão (403): {permission_denied}",
-                    f"Não encontradas (404): {not_found}",
-                    f"Outros erros: {other_errors}",
-                    ""
-                ])
-                
-                # Adicionar detalhes de erros se houver
-                if error_details:
-                    summary.append("=== DETALHES DOS ERROS ===")
-                    summary.extend(error_details[:15])  # Mostrar até 15 erros
-                    if len(error_details) > 15:
-                        summary.append(f"  ... e mais {len(error_details) - 15} erros")
-                    summary.append("")
+            # Adicionar detalhes de falhas se houver
+            if failed_details:
+                summary.append("=== PÁGINAS COM ERRO ===")
+                summary.extend(failed_details[:10])  # Mostrar até 10 erros
+                if len(failed_details) > 10:
+                    summary.append(f"... e mais {len(failed_details) - 10} erros")
+                summary.append("")
             
-            summary.append("=== PÁGINAS EXTRAÍDAS COM SUCESSO ===")
-            
-            # Adicionar lista detalhada apenas das páginas bem-sucedidas
-            success_count = 0
-            for title, content in contents.items():
-                if isinstance(content, dict) and content.get('markdown'):
-                    success_count += 1
-                    if success_count <= 10:  # Mostrar apenas as primeiras 10 para não sobrecarregar
-                        categories = len(content.get('categories', []))
-                        markdown_size = len(content.get('markdown', ''))
-                        
-                        summary.append(f"✓ {title}")
-                        summary.append(f"    └─ Markdown: {markdown_size:,} caracteres")
-                        summary.append(f"    └─ Categorias: {categories}")
-                        summary.append(f"    └─ ID: {content.get('pageid', 'N/A')}")
-                    elif success_count == 11:
-                        summary.append(f"... e mais {successful - 10} páginas extraídas com sucesso")
-                        break
+            if successful > 0:
+                summary.append("✅ Páginas processadas foram marcadas como concluídas no cache")
             
             result_text = "\n".join(summary)
             self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
             self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
             
-            # Status com informação sobre permissões
-            if permission_denied > 0:
-                status_msg = f"Extração completa: {successful}/{total_pages} ({permission_denied} sem permissão)"
-                self.root.after(0, lambda: self.update_status(status_msg, "orange"))
-            else:
-                self.root.after(0, lambda: self.update_status(f"Extração completa: {successful}/{total_pages}", "green"))
-                
+            # Status final
+            status_msg = f"Extraídas: {successful}/{total_pages} | Cache: {stats['progress_percentage']:.1f}%"
+            status_color = "green" if failed == 0 else "orange"
+            self.root.after(0, lambda: self.update_status(status_msg, status_color))
             self.root.after(0, lambda: self.progress_bar.set(1.0))
             
-            # Log detalhado
-            log_msg = f"Extração markdown completa: {successful} páginas extraídas"
-            if permission_denied > 0:
-                log_msg += f", {permission_denied} sem permissão"
-            if not_found > 0:
-                log_msg += f", {not_found} não encontradas"
-            if other_errors > 0:
-                log_msg += f", {other_errors} outros erros"
+            # Log
+            self.log_message(f"Extração completa: {successful}/{total_pages} páginas. Progresso geral: {stats['progress_percentage']:.1f}%")
             
-            self.log_message(log_msg)
-            
-            # Log específico para páginas sem permissão
-            if permission_denied > 0:
-                self.log_message(f"AVISO: {permission_denied} páginas não puderam ser acessadas devido a restrições de permissão")
-                self.log_message("Considere usar uma conta com mais privilégios ou solicitar acesso ao administrador")
-            
-            # Armazenar conteúdo para próximas operações
+            # Armazenar conteúdo para salvar arquivos
             self.extracted_content = contents
             
-            # Habilitar botão de salvar se há conteúdo extraído
+            # Habilitar botão de salvar se há conteúdo
             if successful > 0:
                 self.root.after(0, lambda: self.save_files_btn.configure(state="normal"))
+            
+            # Atualizar lista de páginas (mostrar páginas pendentes restantes)
+            self.root.after(0, self._create_cached_page_checkboxes)
             
         except Exception as e:
             error_msg = f"ERRO na extração: {str(e)}"
@@ -693,6 +786,49 @@ class MediaWikiApp:
         finally:
             self.root.after(0, lambda: self.extract_pages_btn.configure(state="normal"))
             self.root.after(0, lambda: self.progress_label.configure(text=""))
+    
+    def list_all_pages(self):
+        """Método legado - redireciona para refresh_pages_from_api"""
+        self.log_message("Redirecionando para atualização do cache...")
+        self.refresh_pages_from_api()
+        
+    def extract_all_content(self):
+        """Método legado - redireciona para extract_pending_content"""
+        self.log_message("Redirecionando para extração de páginas pendentes...")
+        self.extract_pending_content()
+    
+    def select_all_pages(self):
+        """Seleciona todas as páginas pendentes"""
+        for checkbox in self.page_checkboxes:
+            checkbox.var.set(True)
+        self.update_selected_count()
+    
+    def deselect_all_pages(self):
+        """Deseleciona todas as páginas pendentes"""
+        for checkbox in self.page_checkboxes:
+            checkbox.var.set(False)
+        self.update_selected_count()
+    
+    def update_selected_count(self):
+        """Atualiza o contador de páginas selecionadas"""
+        selected_count = sum(1 for checkbox in self.page_checkboxes if checkbox.var.get())
+        total_count = len(self.page_checkboxes)
+        
+        # Adicionar informação sobre páginas pendentes vs total
+        stats = self.pages_cache.get_statistics()
+        total_pending = stats.get('pending_pages', 0)
+        
+        self.selected_count_label.configure(
+            text=f"{selected_count}/{total_count} selecionadas ({total_pending} pendentes no cache)"
+        )
+    
+    def get_selected_pages(self):
+        """Retorna lista de páginas selecionadas"""
+        selected_pages = []
+        for checkbox in self.page_checkboxes:
+            if checkbox.var.get():
+                selected_pages.append(checkbox.page_data)
+        return selected_pages
 
     def save_extracted_files(self):
         """Salva as páginas extraídas em arquivos HTML"""
