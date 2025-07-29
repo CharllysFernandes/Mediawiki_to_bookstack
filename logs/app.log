@@ -1,0 +1,203 @@
+2025-07-28 21:29:43,531 - MediaWikiApp - INFO - Configurações salvas com sucesso!
+2025-07-28 21:31:31,538 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:31:31,791 - MediaWikiApp - INFO - ERRO: Erro durante o login: Erro na requisição: HTTPSConnectionPool(host='wiki.hepta.com.br', port=443): Max retries exceeded with url: /w/api.php?action=query&meta=tokens&type=login&format=json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1028)')))
+2025-07-28 21:35:24,288 - MediaWikiApp - INFO - Configurações salvas com sucesso!
+2025-07-28 21:35:25,875 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:35:25,885 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 21:35:26,723 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 21:37:05,516 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-28 21:37:05,798 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-28 21:37:05,806 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-28 21:37:05,808 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1
+2025-07-28 21:37:13,907 - MediaWikiApp - INFO - Configurações salvas com sucesso!
+2025-07-28 21:42:06,886 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:42:06,890 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 21:42:07,622 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 21:42:35,674 - MediaWikiApp - INFO - Desconectado com sucesso!
+2025-07-28 21:42:49,278 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:42:49,291 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 21:42:49,995 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 21:50:15,040 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:50:15,048 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 21:50:15,737 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 21:50:26,410 - MediaWikiApp - INFO - Obtendo lista de prefixos de páginas...
+2025-07-28 21:50:26,509 - MediaWikiApp - INFO - Encontrados 0 prefixos
+2025-07-28 21:50:30,453 - MediaWikiApp - INFO - Obtendo lista de prefixos de páginas...
+2025-07-28 21:50:30,563 - MediaWikiApp - INFO - Encontrados 0 prefixos
+2025-07-28 21:56:57,311 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 21:56:57,316 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 21:56:58,042 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 21:57:04,217 - MediaWikiApp - INFO - Obtendo lista de prefixos de páginas...
+2025-07-28 21:57:04,311 - MediaWikiApp - INFO - Encontrados 0 prefixos
+2025-07-28 21:57:07,072 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-28 21:57:07,160 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-28 21:57:07,161 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-28 21:57:07,161 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1
+2025-07-28 21:57:43,035 - MediaWikiApp - INFO - Desconectado com sucesso!
+2025-07-28 22:01:26,908 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 22:01:26,909 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 22:01:27,741 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 22:01:31,874 - MediaWikiApp - INFO - Obtendo lista de namespaces/prefixos...
+2025-07-28 22:01:31,982 - MediaWikiApp - INFO - Encontrados 28 namespaces
+2025-07-28 22:04:32,512 - MediaWikiApp - INFO - Desconectado com sucesso!
+2025-07-28 22:05:02,076 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 22:05:02,091 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 22:05:02,905 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 22:05:07,367 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 22:05:29,511 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 22:20:19,460 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 22:20:19,466 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 22:20:20,563 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 22:20:31,128 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 22:21:10,458 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 22:28:34,197 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 22:28:34,198 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 22:28:35,281 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 22:28:42,302 - MediaWikiApp - INFO - ERRO: Liste as páginas primeiro
+2025-07-28 22:28:48,287 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 22:29:47,907 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 22:32:22,481 - MediaWikiApp - INFO - Iniciando extração de 3 páginas selecionadas...
+2025-07-28 22:32:22,785 - MediaWikiApp - INFO - Extração completa: 3 páginas extraídas com sucesso
+2025-07-28 22:47:32,304 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 22:47:32,324 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 22:47:33,733 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 22:47:41,083 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 22:48:40,346 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 22:49:49,296 - MediaWikiApp - INFO - Iniciando extração HTML de 1 páginas selecionadas...
+2025-07-28 22:49:49,692 - MediaWikiApp - INFO - Extração HTML completa: 1 páginas extraídas com sucesso
+2025-07-28 22:49:56,238 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_224956
+2025-07-28 22:49:56,261 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos em 'exported_pages_20250728_224956'
+2025-07-28 22:59:57,399 - MediaWikiApp - INFO - Desconectado com sucesso!
+2025-07-28 23:00:51,941 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 23:00:51,942 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 23:00:53,003 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 23:00:58,492 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 23:01:57,364 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 23:02:57,078 - MediaWikiApp - INFO - Iniciando extração HTML de 1 páginas selecionadas...
+2025-07-28 23:02:57,408 - MediaWikiApp - INFO - Extração HTML completa: 1 páginas extraídas com sucesso
+2025-07-28 23:03:03,330 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_230303
+2025-07-28 23:03:03,351 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos em 'exported_pages_20250728_230303'
+2025-07-28 23:05:40,552 - MediaWikiApp - INFO - Iniciando extração HTML de 2 páginas selecionadas...
+2025-07-28 23:05:41,399 - MediaWikiApp - INFO - Extração HTML completa: 1 páginas extraídas com sucesso
+2025-07-28 23:06:44,641 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_230644
+2025-07-28 23:06:44,661 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos em 'exported_pages_20250728_230644'
+2025-07-28 23:08:27,466 - MediaWikiApp - INFO - Iniciando extração HTML de 1 páginas selecionadas...
+2025-07-28 23:08:27,684 - MediaWikiApp - INFO - Extração HTML completa: 0 páginas extraídas com sucesso
+2025-07-28 23:08:30,511 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_230830
+2025-07-28 23:08:30,530 - MediaWikiApp - INFO - Salvamento completo: 0 arquivos em 'exported_pages_20250728_230830'
+2025-07-28 23:16:00,373 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 23:16:00,374 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 23:16:01,412 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 23:16:09,684 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 23:17:11,478 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 23:19:46,097 - MediaWikiApp - INFO - Iniciando extração HTML de 1 páginas selecionadas...
+2025-07-28 23:19:46,443 - MediaWikiApp - INFO - Extração HTML completa: 1 páginas extraídas com sucesso, 0 falharam
+2025-07-28 23:19:50,980 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_231950
+2025-07-28 23:19:51,003 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos em 'exported_pages_20250728_231950'
+2025-07-28 23:31:17,151 - MediaWikiApp - INFO - Iniciando extração HTML de 1 páginas selecionadas...
+2025-07-28 23:31:17,522 - MediaWikiApp - INFO - Extração HTML completa: 1 páginas extraídas com sucesso, 0 falharam
+2025-07-28 23:31:20,242 - MediaWikiApp - INFO - Salvando arquivos em: exported_pages_20250728_233120
+2025-07-28 23:31:20,264 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos em 'exported_pages_20250728_233120'
+2025-07-28 23:45:32,571 - MediaWikiApp - INFO - Desconectado com sucesso!
+2025-07-28 23:46:28,834 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 23:46:28,835 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 23:46:30,098 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 23:46:34,750 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 23:47:34,490 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-28 23:51:29,244 - MediaWikiApp - INFO - Iniciando extração de wikitext de 1 páginas selecionadas...
+2025-07-28 23:51:29,446 - MediaWikiApp - INFO - Extração wikitext completa: 0 páginas extraídas com sucesso, 1 falharam
+2025-07-28 23:55:47,560 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-28 23:55:47,561 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-28 23:55:48,576 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-28 23:55:55,297 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-28 23:56:53,577 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 00:02:35,583 - MediaWikiApp - INFO - Iniciando extração de wikitext de 1 páginas selecionadas...
+2025-07-29 00:02:35,850 - MediaWikiApp - INFO - Extração wikitext completa: 0 páginas extraídas, 1 sem permissão
+2025-07-29 00:02:35,851 - MediaWikiApp - INFO - AVISO: 1 páginas não puderam ser acessadas devido a restrições de permissão
+2025-07-29 00:02:35,851 - MediaWikiApp - INFO - Considere usar uma conta com mais privilégios ou solicitar acesso ao administrador
+2025-07-29 00:03:29,188 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-29 00:03:29,473 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-29 00:03:29,473 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-29 00:03:29,473 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1
+2025-07-29 00:03:36,326 - MediaWikiApp - INFO - Iniciando extração de wikitext de 1 páginas selecionadas...
+2025-07-29 00:03:36,501 - MediaWikiApp - INFO - Extração wikitext completa: 0 páginas extraídas, 1 sem permissão
+2025-07-29 00:03:36,506 - MediaWikiApp - INFO - AVISO: 1 páginas não puderam ser acessadas devido a restrições de permissão
+2025-07-29 00:03:36,506 - MediaWikiApp - INFO - Considere usar uma conta com mais privilégios ou solicitar acesso ao administrador
+2025-07-29 00:12:34,781 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 00:12:34,782 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 00:12:37,021 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 00:12:51,373 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 00:13:50,777 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 00:15:38,728 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 1 páginas selecionadas...
+2025-07-29 00:15:38,906 - MediaWikiApp - INFO - Extração markdown completa: 0 páginas extraídas, 1 sem permissão
+2025-07-29 00:15:38,907 - MediaWikiApp - INFO - AVISO: 1 páginas não puderam ser acessadas devido a restrições de permissão
+2025-07-29 00:15:38,907 - MediaWikiApp - INFO - Considere usar uma conta com mais privilégios ou solicitar acesso ao administrador
+2025-07-29 00:26:11,830 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 00:26:11,834 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 00:26:12,852 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 00:26:19,889 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 00:27:19,152 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 00:28:22,571 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 1 páginas selecionadas...
+2025-07-29 00:28:22,739 - MediaWikiApp - INFO - Extração markdown completa: 0 páginas extraídas, 1 sem permissão
+2025-07-29 00:28:22,739 - MediaWikiApp - INFO - AVISO: 1 páginas não puderam ser acessadas devido a restrições de permissão
+2025-07-29 00:28:22,740 - MediaWikiApp - INFO - Considere usar uma conta com mais privilégios ou solicitar acesso ao administrador
+2025-07-29 00:35:40,734 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 00:35:40,736 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 00:35:40,736 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 00:35:42,133 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 00:35:47,619 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 00:36:46,640 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 00:38:28,376 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 1 páginas selecionadas...
+2025-07-29 00:38:29,441 - MediaWikiApp - INFO - Extração markdown completa: 1 páginas extraídas
+2025-07-29 00:38:53,196 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_003853
+2025-07-29 00:38:53,199 - MediaWikiApp - INFO - ERRO ao salvar '/Arquivos da Área de Trabalho e/ou Computador Sumiram/Mostrar Ícones da Área de Trabalho Desabilitado': 'MediaWikiApp' object has no attribute '_sanitize_filename'
+2025-07-29 00:38:53,227 - MediaWikiApp - INFO - ERRO ao salvar arquivos: 'MediaWikiApp' object has no attribute '_create_markdown_index'
+2025-07-29 00:41:57,024 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 00:41:57,026 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 00:41:57,027 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 00:41:58,305 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 00:42:04,245 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 00:43:03,222 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 00:44:49,991 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 1 páginas selecionadas...
+2025-07-29 00:44:51,032 - MediaWikiApp - INFO - Extração markdown completa: 1 páginas extraídas
+2025-07-29 00:45:01,137 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_004501
+2025-07-29 00:45:01,160 - MediaWikiApp - INFO - Salvamento completo: 1 arquivos Markdown salvos em 'exported_markdown_20250729_004501'
+2025-07-29 00:46:52,172 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 2 páginas selecionadas...
+2025-07-29 00:46:53,887 - MediaWikiApp - INFO - Extração markdown completa: 2 páginas extraídas
+2025-07-29 00:47:01,229 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_004701
+2025-07-29 00:47:01,255 - MediaWikiApp - INFO - Salvamento completo: 2 arquivos Markdown salvos em 'exported_markdown_20250729_004701'
+2025-07-29 00:48:09,312 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 3 páginas selecionadas...
+2025-07-29 00:48:11,935 - MediaWikiApp - INFO - Extração markdown completa: 3 páginas extraídas
+2025-07-29 00:48:20,191 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_004820
+2025-07-29 00:48:20,386 - MediaWikiApp - INFO - Salvamento completo: 3 arquivos Markdown salvos em 'exported_markdown_20250729_004820'
+2025-07-29 00:51:25,826 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 4 páginas selecionadas...
+2025-07-29 00:51:28,991 - MediaWikiApp - INFO - Extração markdown completa: 4 páginas extraídas
+2025-07-29 00:51:36,774 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_005136
+2025-07-29 00:51:36,973 - MediaWikiApp - INFO - Salvamento completo: 4 arquivos Markdown salvos em 'exported_markdown_20250729_005136'
+2025-07-29 00:54:40,708 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 10 páginas selecionadas...
+2025-07-29 00:54:50,365 - MediaWikiApp - INFO - Extração markdown completa: 10 páginas extraídas
+2025-07-29 00:54:53,212 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_005453
+2025-07-29 00:54:53,573 - MediaWikiApp - INFO - Salvamento completo: 10 arquivos Markdown salvos em 'exported_markdown_20250729_005453'
+2025-07-29 00:58:57,852 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 13 páginas selecionadas...
+2025-07-29 00:59:08,208 - MediaWikiApp - INFO - Extração markdown completa: 13 páginas extraídas
+2025-07-29 00:59:12,094 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_005912
+2025-07-29 00:59:12,868 - MediaWikiApp - INFO - Salvamento completo: 13 arquivos Markdown salvos em 'exported_markdown_20250729_005912'
+2025-07-29 01:02:46,519 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 15 páginas selecionadas...
+2025-07-29 01:02:55,557 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_010255
+2025-07-29 01:02:56,150 - MediaWikiApp - INFO - Salvamento completo: 13 arquivos Markdown salvos em 'exported_markdown_20250729_010255'
+2025-07-29 01:03:00,305 - MediaWikiApp - INFO - Extração markdown completa: 15 páginas extraídas
+2025-07-29 01:07:07,590 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 21 páginas selecionadas...
+2025-07-29 01:07:23,604 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_010723
+2025-07-29 01:07:24,000 - MediaWikiApp - INFO - Salvamento completo: 15 arquivos Markdown salvos em 'exported_markdown_20250729_010723'
+2025-07-29 01:07:24,002 - MediaWikiApp - INFO - Extração markdown completa: 21 páginas extraídas
+2025-07-29 01:15:34,813 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 01:15:34,813 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 01:15:34,814 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 01:15:36,095 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 01:15:39,611 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
+2025-07-29 01:16:38,972 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 01:18:23,502 - MediaWikiApp - INFO - Iniciando extração direta em markdown de 3 páginas selecionadas...
+2025-07-29 01:18:23,502 - MediaWikiApp - INFO - Expansão de templates: Ativada
+2025-07-29 01:18:27,988 - MediaWikiApp - INFO - Extração markdown completa: 3 páginas extraídas
+2025-07-29 01:18:30,955 - MediaWikiApp - INFO - Salvando arquivos Markdown em: exported_markdown_20250729_011830
+2025-07-29 01:18:31,140 - MediaWikiApp - INFO - Salvamento completo: 3 arquivos Markdown salvos em 'exported_markdown_20250729_011830'
