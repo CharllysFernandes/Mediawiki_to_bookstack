@@ -806,60 +806,67 @@ class MediaWikiApp:
             else:
                 other_errors.append((title, "Erro desconhecido"))
         
+        # Create the content parts separately to avoid backslash in f-string
+        permission_list = ''.join([f'- `{title}`: {error}\n' for title, error in permission_errors[:20]])
+        permission_more = f'*... e mais {len(permission_errors) - 20} páginas*\n' if len(permission_errors) > 20 else ''
+        
+        not_found_list = ''.join([f'- `{title}`: {error}\n' for title, error in not_found_errors[:10]])
+        not_found_more = f'*... e mais {len(not_found_errors) - 10} páginas*\n' if len(not_found_errors) > 10 else ''
+        
+        other_list = ''.join([f'- `{title}`: {error}\n' for title, error in other_errors[:10]])
+        other_more = f'*... e mais {len(other_errors) - 10} páginas*\n' if len(other_errors) > 10 else ''
+        
         stats_md = f"""# Relatório de Extração - MediaWiki to BookStack
 
-**Data da extração:** {datetime.now().strftime("%d/%m/%Y às %H:%M")}
+    **Data da extração:** {datetime.now().strftime("%d/%m/%Y às %H:%M")}
 
-## Resumo Geral
+    ## Resumo Geral
 
-| Métrica | Valor |
-|---------|-------|
-| Total de páginas processadas | {len(content_dict)} |
-| Páginas extraídas com sucesso | {len(successful_pages)} |
-| Páginas com erro | {len(failed_pages)} |
-| Taxa de sucesso | {(len(successful_pages) / len(content_dict) * 100):.1f}% |
+    | Métrica | Valor |
+    |---------|-------|
+    | Total de páginas processadas | {len(content_dict)} |
+    | Páginas extraídas com sucesso | {len(successful_pages)} |
+    | Páginas com erro | {len(failed_pages)} |
+    | Taxa de sucesso | {(len(successful_pages) / len(content_dict) * 100):.1f}% |
 
-## Detalhamento dos Erros
+    ## Detalhamento dos Erros
 
-### 🔒 Erros de Permissão (403 Forbidden)
-**Total:** {len(permission_errors)} páginas
+    ### 🔒 Erros de Permissão (403 Forbidden)
+    **Total:** {len(permission_errors)} páginas
 
-{''.join(f'- `{title}`: {error}\\n' for title, error in permission_errors[:20])}
-{f'*... e mais {len(permission_errors) - 20} páginas*' if len(permission_errors) > 20 else ''}
+    {permission_list}{permission_more}
 
-### ❌ Páginas Não Encontradas (404)
-**Total:** {len(not_found_errors)} páginas
+    ### ❌ Páginas Não Encontradas (404)
+    **Total:** {len(not_found_errors)} páginas
 
-{''.join(f'- `{title}`: {error}\\n' for title, error in not_found_errors[:10])}
-{f'*... e mais {len(not_found_errors) - 10} páginas*' if len(not_found_errors) > 10 else ''}
+    {not_found_list}{not_found_more}
 
-### ⚠️ Outros Erros
-**Total:** {len(other_errors)} páginas
+    ### ⚠️ Outros Erros
+    **Total:** {len(other_errors)} páginas
 
-{''.join(f'- `{title}`: {error}\\n' for title, error in other_errors[:10])}
-{f'*... e mais {len(other_errors) - 10} páginas*' if len(other_errors) > 10 else ''}
+    {other_list}{other_more}
 
-## Recomendações
+    ## Recomendações
 
-### Para Erros de Permissão (403):
-- Verifique se o usuário tem as permissões necessárias
-- Solicite acesso ao administrador da wiki
-- Considere usar uma conta com privilégios administrativos
+    ### Para Erros de Permissão (403):
+    - Verifique se o usuário tem as permissões necessárias
+    - Solicite acesso ao administrador da wiki
+    - Considere usar uma conta com privilégios administrativos
 
-### Para Páginas Não Encontradas (404):
-- Verifique se as páginas ainda existem na wiki
-- Confirme se os títulos estão corretos
-- Algumas páginas podem ter sido movidas ou deletadas
+    ### Para Páginas Não Encontradas (404):
+    - Verifique se as páginas ainda existem na wiki
+    - Confirme se os títulos estão corretos
+    - Algumas páginas podem ter sido movidas ou deletadas
 
-### Para Outros Erros:
-- Verifique a conectividade com a wiki
-- Confirme se a API está funcionando corretamente
-- Tente extrair novamente após algum tempo
+    ### Para Outros Erros:
+    - Verifique a conectividade com a wiki
+    - Confirme se a API está funcionando corretamente
+    - Tente extrair novamente após algum tempo
 
----
+    ---
 
-*Relatório gerado automaticamente pelo MediaWiki to BookStack Exporter*
-"""
+    *Relatório gerado automaticamente pelo MediaWiki to BookStack Exporter*
+    """
         
         with open(stats_path, 'w', encoding='utf-8') as f:
             f.write(stats_md)

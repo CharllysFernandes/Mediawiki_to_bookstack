@@ -1,0 +1,22 @@
+# Ignorar arquivos de configuração com dados sensíveis
+settings.json
+
+# Ignorar backups de configuração
+*.bak
+*.backup
+
+# Ignorar arquivos temporários
+*.tmp
+*.temp
+
+# Ignorar logs específicos da configuração
+config.log
+*.log
+
+# Ignorar arquivos de cache
+.cache/
+__pycache__/
+
+# Ignorar arquivos do sistema
+.DS_Store
+Thumbs.db
