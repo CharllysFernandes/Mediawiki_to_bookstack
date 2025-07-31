@@ -15,6 +15,9 @@ class MediaWikiApp:
         self.pages_cache = PagesCache()
         self.is_connected = False
         
+        # Janela de configurações
+        self.config_window = None
+        
         # Configurar tema
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -100,6 +103,9 @@ class MediaWikiApp:
         
         self.load_btn = ctk.CTkButton(self.login_button_frame, text="Carregar Config", command=self.load_config)
         self.load_btn.pack(side="left", padx=10, pady=10)
+        
+        self.config_btn = ctk.CTkButton(self.login_button_frame, text="Configurações", command=self.open_config_window)
+        self.config_btn.pack(side="left", padx=10, pady=10)
         
         # Frame conectado (inicialmente oculto)
         self.connected_frame = ctk.CTkFrame(main_frame)
