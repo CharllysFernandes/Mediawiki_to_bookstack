@@ -1,7 +1,0 @@
-{
-    "verify_ssl": false,
-    "timeout": 30,
-    "user_agent": "MediaWiki-to-BookStack/1.0",
-    "api_url": "https://wiki.hepta.com.br/w/api.php",
-    "username": "charllys.luz"
-}
