@@ -9,12 +9,12 @@ import os
 # Adicionar o diretório src ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.wikitext_parser import WikitextToMarkdownConverter
+from src.wikitext_parser import WikitextParser
 
 def test_advanced_parsing():
-    """Demonstra conversões avançadas com mwparserfromhell"""
+    """Demonstra parsing avançado com mwparserfromhell"""
     
-    converter = WikitextToMarkdownConverter()
+    parser = WikitextParser()
     
     # Exemplo 1: Página com templates complexos
     wikitext1 = """
@@ -75,9 +75,26 @@ múltiplas linhas
 [[Category:Python]]
 """
 
-    print("=== EXEMPLO 1: Conversão Avançada ===")
-    result1 = converter.convert(wikitext1, "Página de Exemplo", ["Programação", "Python"])
-    print(result1)
+    print("=== EXEMPLO 1: Parsing Avançado ===")
+    result1 = parser.parse_wikitext(wikitext1, "Página de Exemplo", ["Programação", "Python"])
+    print("Dados extraídos:")
+    print(f"- Título: {result1['title']}")
+    print(f"- Categorias: {result1['categories']}")
+    print(f"- Templates encontrados: {len(result1['templates'])}")
+    print(f"- Links encontrados: {len(result1['links'])}")
+    print(f"- Seções encontradas: {len(result1['sections'])}")
+    
+    if result1['templates']:
+        print("\nTemplates:")
+        for template in result1['templates']:
+            print(f"  - {template['name']}: {list(template['params'].keys())}")
+    
+    if result1['sections']:
+        print("\nSeções:")
+        for section in result1['sections']:
+            print(f"  - H{section['level']}: {section['title']}")
+    
+    print("\n" + "="*50)
     print("\n" + "="*60 + "\n")
     
     # Exemplo 2: Página com estrutura complexa
@@ -130,8 +147,13 @@ Execute o comando:
 """
 
     print("=== EXEMPLO 2: Procedimento Técnico ===")
-    result2 = converter.convert(wikitext2, "Procedimento de Instalação", ["Instalação", "Software"])
-    print(result2)
+    result2 = parser.parse_wikitext(wikitext2, "Procedimento de Instalação", ["Instalação", "Software"])
+    print("Dados extraídos:")
+    print(f"- Título: {result2['title']}")
+    print(f"- Categorias: {result2['categories']}")
+    print(f"- Templates encontrados: {len(result2['templates'])}")
+    print(f"- Links encontrados: {len(result2['links'])}")
+    print(f"- Seções encontradas: {len(result2['sections'])}")
     print("\n" + "="*60 + "\n")
 
 def test_fallback():
@@ -148,12 +170,15 @@ Texto normal aqui.
 [[Link quebrado|
 """
     
-    converter = WikitextToMarkdownConverter()
+    parser = WikitextParser()
     print("=== EXEMPLO 3: Teste de Fallback ===")
     
     try:
-        result = converter.convert(problematic_wikitext, "Teste de Fallback")
-        print(result)
+        result = parser.parse_wikitext(problematic_wikitext, "Teste de Fallback")
+        print("Parsing realizado com sucesso!")
+        print(f"- Erro no parsing: {result.get('parse_error', 'Nenhum')}")
+        print(f"- Templates encontrados: {len(result['templates'])}")
+        print(f"- Conteúdo preservado: {len(result['content'])} caracteres")
     except Exception as e:
         print(f"Erro: {e}")
 
@@ -178,23 +203,26 @@ Texto com '''negrito''' e ''itálico''.
 {{code|lang=python|print("Hello")}}
 """
     
-    converter = WikitextToMarkdownConverter()
+    parser = WikitextParser()
     
     print("=== COMPARAÇÃO: Parser Avançado vs Básico ===")
     print("\n--- Parser Avançado ---")
-    advanced_result = converter.convert(test_wikitext, "Teste de Comparação")
-    print(advanced_result)
+    advanced_result = parser.parse_wikitext(test_wikitext, "Teste de Comparação")
+    print(f"Templates encontrados: {len(advanced_result['templates'])}")
+    print(f"Links encontrados: {len(advanced_result['links'])}")
+    print(f"Seções encontradas: {len(advanced_result['sections'])}")
     
-    print("\n--- Parser Básico ---") 
-    basic_result = converter._basic_regex_conversion(test_wikitext)
-    print(basic_result)
+    print("\n--- Limpeza Básica ---") 
+    basic_result = parser.clean_wikitext(test_wikitext)
+    print(f"Texto limpo ({len(basic_result)} caracteres)")
+    print(basic_result[:200] + "..." if len(basic_result) > 200 else basic_result)
 
 if __name__ == "__main__":
-    print("🔍 Demonstração do Parser Avançado de Wikitext\n")
+    print("🔍 Demonstração do Parser de Wikitext\n")
     
     try:
         import mwparserfromhell
-        print("✅ mwparserfromhell disponível - testando parser avançado\n")
+        print("✅ mwparserfromhell disponível - testando parser\n")
         
         test_advanced_parsing()
         test_fallback()

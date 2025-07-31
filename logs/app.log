@@ -211,3 +211,39 @@
 2025-07-29 11:39:17,040 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
 2025-07-29 11:39:22,460 - MediaWikiApp - INFO - Obtendo lista de todas as páginas...
 2025-07-29 11:40:55,126 - MediaWikiApp - INFO - Encontradas 7952 páginas na wiki
+2025-07-29 21:50:57,971 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 21:50:57,990 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 21:50:57,990 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 21:50:59,417 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 21:51:05,007 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-29 21:51:48,194 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (7952 novas)
+2025-07-29 21:51:55,432 - MediaWikiApp - INFO - Exibindo cache: 7952 páginas pendentes
+2025-07-29 21:52:20,300 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-29 21:52:34,563 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-29 21:52:49,396 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-29 21:54:18,277 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-29 21:54:27,216 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-29 21:54:45,347 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-29 21:55:04,064 - MediaWikiApp - INFO - Obtendo lista de namespaces/prefixos...
+2025-07-29 21:55:04,284 - MediaWikiApp - INFO - Encontrados 28 namespaces
+2025-07-29 21:55:11,583 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-29 21:55:11,810 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-29 21:55:11,810 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-29 21:55:11,810 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1
+2025-07-29 21:59:33,619 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 21:59:33,640 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 21:59:33,640 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 21:59:34,957 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 21:59:41,988 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-29 22:08:42,052 - MediaWikiApp - INFO - Exibindo cache: 7952 páginas pendentes
+2025-07-29 22:09:07,364 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-29 22:50:12,531 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-29 22:50:12,550 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-29 22:50:12,550 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-29 22:50:13,819 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-29 22:50:20,788 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-29 22:50:58,769 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-29 22:57:35,641 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-29 22:57:35,914 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-29 22:57:35,915 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-29 22:57:35,915 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1

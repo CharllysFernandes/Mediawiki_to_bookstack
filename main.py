@@ -696,7 +696,7 @@ Mostrando páginas pendentes para seleção...
             contents = self.client.get_page_content_batch(
                 page_titles, 
                 callback=progress_callback, 
-                format_type='markdown',
+                format_type='wikitext',
                 expand_templates=expand_templates
             )
             
@@ -709,7 +709,7 @@ Mostrando páginas pendentes para seleção...
             for i, (title, content) in enumerate(contents.items()):
                 page_id = page_ids[i] if i < len(page_ids) else None
                 
-                if isinstance(content, dict) and content.get('markdown'):
+                if isinstance(content, dict) and content.get('wikitext'):
                     # Sucesso
                     successful += 1
                     if page_id:

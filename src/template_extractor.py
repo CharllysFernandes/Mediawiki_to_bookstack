@@ -241,39 +241,6 @@ class AdvancedMediaWikiConverter:
             print(f"❌ Erro ao expandir templates da página '{page_title}': {e}")
             # Retornar conteúdo original se falhar
             return self.client.get_page_content_wikitext(page_title)
-    
-    def get_page_content_markdown_with_templates(self, page_title: str) -> dict:
-        """Obtém página em markdown com templates expandidos"""
-        try:
-            # Obter conteúdo com templates expandidos
-            content = self.get_page_content_with_expanded_templates(page_title)
-            
-            if not content:
-                return None
-            
-            # Converter para markdown usando o conversor existente
-            from .wikitext_parser import convert_wikitext_to_markdown
-            
-            markdown = convert_wikitext_to_markdown(
-                content.get('wikitext', ''),
-                page_title,
-                content.get('categories', [])
-            )
-            
-            return {
-                'title': content.get('title', page_title),
-                'markdown': markdown,
-                'categories': content.get('categories', []),
-                'pageid': content.get('pageid', ''),
-                'length': len(markdown),
-                'touched': content.get('touched', ''),
-                'templates_expanded': content.get('templates_expanded', False)
-            }
-            
-        except Exception as e:
-            print(f"❌ Erro ao converter para markdown: {e}")
-            # Fallback para método padrão
-            return self.client.get_page_content_markdown(page_title)
 
 def create_advanced_converter(mediawiki_client):
     """Factory function para criar conversor avançado"""

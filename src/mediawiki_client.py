@@ -739,244 +739,21 @@ class MediaWikiClient:
             pass
         
         raise Exception("Acesso raw não disponível")
-
-    def get_page_content_markdown(self, page_title, expand_templates=True):
-        """
-        Obtém conteúdo de uma página já convertido para markdown
-        
-        Args:
-            page_title: Título da página
-            expand_templates: Se deve expandir templates antes da conversão
-        """
-        try:
-            if expand_templates:
-                # Tentar usar extrator avançado de templates
-                try:
-                    from .template_extractor import create_advanced_converter
-                    advanced_converter = create_advanced_converter(self)
-                    result = advanced_converter.get_page_content_markdown_with_templates(page_title)
-                    if result:
-                        return result
-                except ImportError:
-                    print("⚠️ Template extractor não disponível, usando método padrão")
-                except Exception as e:
-                    print(f"⚠️ Erro no template extractor: {e}, usando método padrão")
-            
-            # Método padrão (fallback)
-            # Primeiro obter o wikitext
-            wikitext_content = self.get_page_content_wikitext(page_title)
-            
-            if not wikitext_content:
-                raise Exception("Não foi possível obter o wikitext da página")
-            
-            # Converter para markdown
-            markdown = self._convert_wikitext_to_markdown(
-                wikitext_content.get('wikitext', ''),
-                page_title,
-                wikitext_content.get('categories', [])
-            )
-            
-            return {
-                'title': wikitext_content.get('title', page_title),
-                'markdown': markdown,
-                'categories': wikitext_content.get('categories', []),
-                'pageid': wikitext_content.get('pageid', ''),
-                'length': len(markdown),
-                'touched': wikitext_content.get('touched', ''),
-                'templates_expanded': False
-            }
-            
-        except Exception as e:
-            raise Exception(f"Erro ao converter para markdown: {str(e)}")
-
-    def _convert_wikitext_to_markdown(self, wikitext, title, categories):
-        """Converte wikitext para Markdown otimizado para BookStack usando parser avançado"""
-        try:
-            # Tentar usar o parser avançado primeiro
-            from .wikitext_parser import convert_wikitext_to_markdown
-            return convert_wikitext_to_markdown(wikitext, title, categories)
-        except ImportError:
-            # Fallback para conversão básica se mwparserfromhell não estiver disponível
-            return self._convert_wikitext_to_markdown_basic(wikitext, title, categories)
-        except Exception as e:
-            # Se houver erro no parser avançado, usar método básico
-            import logging
-            logging.warning(f"Erro no parser avançado, usando básico: {str(e)}")
-            return self._convert_wikitext_to_markdown_basic(wikitext, title, categories)
     
-    def _convert_wikitext_to_markdown_basic(self, wikitext, title, categories):
-        """Método básico de conversão (fallback)"""
-        import re
-        
-        if not wikitext:
-            return f"# {title}\n\n> Conteúdo não disponível"
-        
-        # Limpar wikitext removendo elementos específicos do MediaWiki
-        cleaned_text = self._clean_wikitext_for_markdown(wikitext)
-        
-        # Converter para Markdown básico
-        markdown = self._wikitext_to_markdown_conversion(cleaned_text)
-        
-        # Criar cabeçalho do documento
-        header = f"""# {title}
-
-> **Procedimento extraído do MediaWiki**  
-> Data de extração: {self._get_current_datetime()}  
-
-"""
-        
-        # Adicionar categorias se existirem
-        if categories:
-            header += f"""**Categorias:** {', '.join(categories)}
-
----
-
-"""
-        
-        return header + markdown
-
-    def _clean_wikitext_for_markdown(self, wikitext):
-        """Remove elementos específicos do MediaWiki para melhor conversão"""
-        import re
-        
-        # Remover comentários HTML
-        cleaned = re.sub(r'<!--.*?-->', '', wikitext, flags=re.DOTALL)
-        
-        # Remover templates complexos (preservar apenas conteúdo básico)
-        cleaned = re.sub(r'\{\{[^}]*\}\}', '', cleaned)
-        
-        # Remover referências <ref>
-        cleaned = re.sub(r'<ref[^>]*>.*?</ref>', '', cleaned, flags=re.DOTALL)
-        cleaned = re.sub(r'<ref[^>]*\/>', '', cleaned)
-        
-        # Remover categorias do final
-        cleaned = re.sub(r'\[\[Category:.*?\]\]', '', cleaned, flags=re.IGNORECASE)
-        
-        # Remover links de arquivo que não funcionarão
-        cleaned = re.sub(r'\[\[File:.*?\]\]', '[Imagem removida]', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\[\[Arquivo:.*?\]\]', '[Imagem removida]', cleaned, flags=re.IGNORECASE)
-        
-        # Remover divs com estilos inline complexos
-        cleaned = re.sub(r'<div[^>]*style="[^"]*"[^>]*>', '<div>', cleaned)
-        
-        return cleaned.strip()
-
-    def _wikitext_to_markdown_conversion(self, wikitext):
-        """Converte wikitext limpo para Markdown"""
-        import re
-        
-        markdown = wikitext
-        
-        # Cabeçalhos (converter apenas níveis 2-6, pois h1 já é o título)
-        markdown = re.sub(r'^======\s*(.*?)\s*======', r'###### \1', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^=====\s*(.*?)\s*=====', r'##### \1', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^====\s*(.*?)\s*====', r'#### \1', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^===\s*(.*?)\s*===', r'### \1', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^==\s*(.*?)\s*==', r'## \1', markdown, flags=re.MULTILINE)
-        
-        # Texto em negrito
-        markdown = re.sub(r"'''(.*?)'''", r'**\1**', markdown, flags=re.DOTALL)
-        
-        # Texto em itálico
-        markdown = re.sub(r"''(.*?)''", r'*\1*', markdown, flags=re.DOTALL)
-        
-        # Links externos
-        markdown = re.sub(r'\[(https?://[^\s\]]+)\s+([^\]]+)\]', r'[\2](\1)', markdown)
-        markdown = re.sub(r'\[(https?://[^\s\]]+)\]', r'<\1>', markdown)
-        
-        # Links internos (converter para texto simples ou manter como referência)
-        markdown = re.sub(r'\[\[([^|\]]+)\|([^\]]+)\]\]', r'**\2**', markdown)
-        markdown = re.sub(r'\[\[([^\]]+)\]\]', r'**\1**', markdown)
-        
-        # Código inline
-        markdown = re.sub(r'<code>(.*?)</code>', r'`\1`', markdown, flags=re.DOTALL)
-        
-        # Blocos de código
-        markdown = re.sub(r'<pre>(.*?)</pre>', r'```\n\1\n```', markdown, flags=re.DOTALL)
-        
-        # Listas não ordenadas
-        markdown = re.sub(r'^\*\s+', '- ', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^\*\*\s+', '  - ', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^\*\*\*\s+', '    - ', markdown, flags=re.MULTILINE)
-        
-        # Listas ordenadas
-        markdown = re.sub(r'^#+\s+', '1. ', markdown, flags=re.MULTILINE)
-        markdown = re.sub(r'^##+\s+', '   1. ', markdown, flags=re.MULTILINE)
-        
-        # Tabelas simples (converter para markdown table)
-        markdown = self._convert_wiki_tables_to_markdown(markdown)
-        
-        # Remover tags HTML simples
-        markdown = re.sub(r'</?br\s*/?>', '\n', markdown)
-        markdown = re.sub(r'</?p[^>]*>', '\n', markdown)
-        markdown = re.sub(r'</?div[^>]*>', '\n', markdown)
-        markdown = re.sub(r'</?span[^>]*>', '', markdown)
-        
-        # Blockquotes
-        markdown = re.sub(r'<blockquote>(.*?)</blockquote>', r'> \1', markdown, flags=re.DOTALL)
-        
-        # Limpar quebras de linha excessivas
-        markdown = re.sub(r'\n\n+', '\n\n', markdown)
-        markdown = re.sub(r'^\n+', '', markdown)
-        markdown = re.sub(r'\n+$', '', markdown)
-        
-        return markdown.strip()
-
-    def _convert_wiki_tables_to_markdown(self, text):
-        """Converte tabelas wiki simples para formato markdown"""
-        import re
-        
-        # Esta é uma conversão básica - tabelas complexas podem precisar de ajustes manuais
-        # Converter tabelas wiki básicas {| |} para markdown
-        
-        def table_replacer(match):
-            table_content = match.group(1)
-            lines = table_content.strip().split('\n')
-            
-            markdown_table = []
-            headers = []
-            rows = []
-            
-            for line in lines:
-                line = line.strip()
-                if line.startswith('!'):  # Header
-                    headers.extend([cell.strip() for cell in line[1:].split('!!')])
-                elif line.startswith('|') and not line.startswith('|-'):  # Row
-                    row_cells = [cell.strip() for cell in line[1:].split('||')]
-                    if row_cells:
-                        rows.append(row_cells)
-            
-            if headers:
-                markdown_table.append('| ' + ' | '.join(headers) + ' |')
-                markdown_table.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
-            
-            for row in rows:
-                if row:
-                    # Preencher células faltantes
-                    while len(row) < len(headers):
-                        row.append('')
-                    markdown_table.append('| ' + ' | '.join(row[:len(headers)]) + ' |')
-            
-            return '\n'.join(markdown_table) if markdown_table else '[Tabela não convertida]'
-        
-        # Converter tabelas wiki básicas
-        text = re.sub(r'\{\|(.*?)\|\}', table_replacer, text, flags=re.DOTALL)
-        
-        return text
-
+    
     def _get_current_datetime(self):
         """Retorna data/hora atual formatada"""
         from datetime import datetime
         return datetime.now().strftime("%d/%m/%Y às %H:%M")
-
-    def get_page_content_batch(self, page_titles, callback=None, format_type='markdown', expand_templates=True):
+    
+    def get_page_content_batch(self, page_titles, callback=None, format_type='wikitext', expand_templates=True):
         """
         Obtém conteúdo de múltiplas páginas em lote
         
         Args:
             page_titles: Lista de títulos das páginas
             callback: Função de callback para progresso
-            format_type: Tipo de formato ('markdown', 'wikitext', 'html')
+            format_type: Tipo de formato ('wikitext', 'html')
             expand_templates: Se deve expandir templates
         """
         contents = {}
@@ -988,9 +765,7 @@ class MediaWikiClient:
             
             for title in batch:
                 try:
-                    if format_type == 'markdown':
-                        content = self.get_page_content_markdown(title, expand_templates=expand_templates)
-                    elif format_type == 'wikitext':
+                    if format_type == 'wikitext':
                         content = self.get_page_content_wikitext(title)
                     elif format_type == 'html':
                         content = self.get_page_content_html(title)
