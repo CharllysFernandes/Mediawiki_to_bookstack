@@ -1,0 +1,78 @@
+# MediaWiki to BookStack - Arquivo .gitignore principal
+
+# ===== PASTAS DE EXTRAÇÃO =====
+# Pastas geradas pela funcionalidade de extração
+extracted_markdown_*/
+extracted_txt_*/
+exported_markdown_*/
+demo_txt_extraction/
+
+# ===== LOGS =====
+# Arquivos de log da aplicação
+logs/
+*.log
+app.log
+
+# ===== CACHE PYTHON =====
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ===== CONFIGURAÇÕES SENSÍVEIS =====
+# Arquivos de configuração com credenciais
+config/settings.json
+config/pages_cache.json
+
+# ===== ARQUIVOS TEMPORÁRIOS =====
+# Arquivos temporários do sistema
+*.tmp
+*.temp
+*.bak
+*.backup
+.DS_Store
+Thumbs.db
+
+# ===== AMBIENTE VIRTUAL =====
+# Diretórios de ambiente virtual Python
+venv/
+env/
+ENV/
+.venv/
+.env
+
+# ===== JUPYTER NOTEBOOK =====
+# Checkpoints do Jupyter
+.ipynb_checkpoints/
+
+# ===== DADOS DE TESTE =====
+# Arquivos de teste temporários
+test_*.json
+test_*.txt
+test_*.md
+
+# ===== EDITORES =====
+# Arquivos de configuração de editores
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== DOCUMENTAÇÃO TEMPORÁRIA =====
+# Documentos temporários
+*.draft
+*.wip
+
+# ===== BUILDS E DISTRIBUIÇÃO =====
+# Diretórios de build
+build/
+dist/
+*.egg-info/
+
+# ===== ESPECÍFICOS DO PROJETO =====
+# Backups de dados
+backup_*/
+exports_*/
+migrations_*/
