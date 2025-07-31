@@ -1,6 +1,8 @@
 import customtkinter as ctk
 import threading
 import os
+import re
+import unicodedata
 from datetime import datetime
 from src.mediawiki_client import MediaWikiClient
 from src.logger import Logger
@@ -18,6 +20,11 @@ class MediaWikiApp:
         # Janela de configurações
         self.config_window = None
         
+        # Sistema de navegação
+        self.current_view = None
+        self.views = {}
+        self.logged_in = False
+        
         # Configurar tema
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -25,108 +32,250 @@ class MediaWikiApp:
         # Criar janela principal
         self.root = ctk.CTk()
         self.root.title("MediaWiki to BookStack")
-        self.root.geometry("600x500")
+        self.root.geometry("900x700")
         
         self.create_widgets()
         
     def create_widgets(self):
-        # Frame principal
-        main_frame = ctk.CTkFrame(self.root)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Container principal
+        main_container = ctk.CTkFrame(self.root)
+        main_container.pack(fill="both", expand=True)
         
-        # Título
-        title_label = ctk.CTkLabel(main_frame, text="MediaWiki API Client", 
-                                  font=ctk.CTkFont(size=20, weight="bold"))
-        title_label.pack(pady=20)
+        # Barra de navegação lateral
+        self.nav_rail = ctk.CTkFrame(main_container, width=200, corner_radius=0)
+        self.nav_rail.pack(side="left", fill="y")
+        self.nav_rail.pack_propagate(False)
+        
+        # Logo/Título da aplicação
+        app_title = ctk.CTkLabel(self.nav_rail, text="MediaWiki\nto BookStack", 
+                                font=ctk.CTkFont(size=16, weight="bold"))
+        app_title.pack(pady=(20, 30))
+        
+        # Botões de navegação
+        self.nav_buttons = {}
+        
+        # Botão Login
+        self.nav_buttons["login"] = ctk.CTkButton(
+            self.nav_rail, 
+            text="🔐 Login", 
+            command=lambda: self.navigate_to("login"),
+            width=160,
+            height=40,
+            font=ctk.CTkFont(size=14)
+        )
+        self.nav_buttons["login"].pack(pady=(0, 10), padx=20)
+        
+        # Botão Páginas
+        self.nav_buttons["pages"] = ctk.CTkButton(
+            self.nav_rail, 
+            text="📄 Páginas", 
+            command=lambda: self.navigate_to("pages"),
+            width=160,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            state="disabled"  # Desabilitado até fazer login
+        )
+        self.nav_buttons["pages"].pack(pady=(0, 10), padx=20)
+        
+        # Botão Configurações
+        self.nav_buttons["config"] = ctk.CTkButton(
+            self.nav_rail, 
+            text="⚙️ Configurações", 
+            command=lambda: self.navigate_to("config"),
+            width=160,
+            height=40,
+            font=ctk.CTkFont(size=14)
+        )
+        self.nav_buttons["config"].pack(pady=(0, 10), padx=20)
+        
+        # Separador
+        separator = ctk.CTkFrame(self.nav_rail, height=2)
+        separator.pack(fill="x", padx=20, pady=20)
+        
+        # Status da conexão
+        self.connection_status = ctk.CTkLabel(self.nav_rail, text="● Desconectado", 
+                                             text_color="red", font=ctk.CTkFont(size=12))
+        self.connection_status.pack(pady=(10, 0))
+        
+        # Área de conteúdo principal
+        self.content_area = ctk.CTkFrame(main_container)
+        self.content_area.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        
+        # Inicializar variáveis para views
+        self.page_checkboxes = []
+        self.current_pages = []
+        self.extracted_content = {}
+        
+        # Criar todas as views
+        self.create_all_views()
+        
+        # Navegar para a view inicial
+        self.navigate_to("login")
+        
+        # Carregar configurações automaticamente
+        self.load_config(show_message=False)
+    
+    def create_all_views(self):
+        """Cria todas as views da aplicação"""
+        self.views = {}
+        
+        # View de Login
+        self.views["login"] = self.create_login_view()
+        
+        # View de Páginas
+        self.views["pages"] = self.create_pages_view()
+        
+        # View de Configurações
+        self.views["config"] = self.create_config_view()
+        
+        # Ocultar todas as views inicialmente
+        for view in self.views.values():
+            view.pack_forget()
+    
+    def navigate_to(self, view_name):
+        """Navega para uma view específica"""
+        # Atualizar estado dos botões
+        for btn_name, btn in self.nav_buttons.items():
+            if btn_name == view_name:
+                btn.configure(state="disabled")
+            else:
+                # Verificar se deve estar habilitado
+                if btn_name == "pages" and not self.logged_in:
+                    btn.configure(state="disabled")
+                else:
+                    btn.configure(state="normal")
+        
+        # Ocultar view atual
+        if hasattr(self, "current_view") and self.current_view:
+            self.current_view.pack_forget()
+        
+        # Mostrar nova view
+        if view_name in self.views:
+            self.views[view_name].pack(fill="both", expand=True, padx=20, pady=20)
+            self.current_view = self.views[view_name]
+            
+        # Atualizar título da view
+        self.update_view_title(view_name)
+    
+    def update_view_title(self, view_name):
+        """Atualiza o título da view atual"""
+        titles = {
+            "login": "🔐 Conexão MediaWiki",
+            "pages": "",
+            "config": "⚙️ Configurações Avançadas"
+        }
+        
+        # Se já existe um título, removê-lo
+        for widget in self.content_area.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and hasattr(widget, "_is_title"):
+                widget.destroy()
+                break
+        
+        # Criar novo título
+        title = ctk.CTkLabel(self.content_area, text=titles.get(view_name, ""), 
+                            font=ctk.CTkFont(size=20, weight="bold"))
+        title._is_title = True
+        title.pack(pady=(20, 10), anchor="w")
+    
+    def create_login_view(self):
+        """Cria a view de login"""
+        login_view = ctk.CTkFrame(self.content_area)
         
         # Frame de configuração (login)
-        self.config_frame = ctk.CTkFrame(main_frame)
-        self.config_frame.pack(fill="x", padx=20, pady=10)
+        config_frame = ctk.CTkFrame(login_view)
+        config_frame.pack(fill="x", padx=20, pady=20)
         
         # URL da API
-        ctk.CTkLabel(self.config_frame, text="URL da API MediaWiki:").pack(anchor="w", padx=10, pady=(10,0))
-        self.url_entry = ctk.CTkEntry(self.config_frame, placeholder_text="https://wiki.example.com/api.php")
+        ctk.CTkLabel(config_frame, text="URL da API MediaWiki:").pack(anchor="w", padx=10, pady=(10,0))
+        self.url_entry = ctk.CTkEntry(config_frame, placeholder_text="https://wiki.example.com/api.php")
         self.url_entry.pack(fill="x", padx=10, pady=(5,10))
         
         # Usuário
-        ctk.CTkLabel(self.config_frame, text="Usuário:").pack(anchor="w", padx=10, pady=(0,0))
-        self.username_entry = ctk.CTkEntry(self.config_frame, placeholder_text="Digite seu usuário")
+        ctk.CTkLabel(config_frame, text="Usuário:").pack(anchor="w", padx=10, pady=(0,0))
+        self.username_entry = ctk.CTkEntry(config_frame, placeholder_text="Digite seu usuário")
         self.username_entry.pack(fill="x", padx=10, pady=(5,10))
         
         # Senha
-        ctk.CTkLabel(self.config_frame, text="Senha:").pack(anchor="w", padx=10, pady=(0,0))
-        self.password_entry = ctk.CTkEntry(self.config_frame, placeholder_text="Digite sua senha", show="*")
+        ctk.CTkLabel(config_frame, text="Senha:").pack(anchor="w", padx=10, pady=(0,0))
+        self.password_entry = ctk.CTkEntry(config_frame, placeholder_text="Digite sua senha", show="*")
         self.password_entry.pack(fill="x", padx=10, pady=(5,10))
         
         # Checkbox para salvar senha
         self.save_password_var = ctk.BooleanVar()
-        self.save_password_checkbox = ctk.CTkCheckBox(self.config_frame, text="Salvar senha (não recomendado)", 
+        self.save_password_checkbox = ctk.CTkCheckBox(config_frame, text="Salvar senha (não recomendado)", 
                                                      variable=self.save_password_var)
         self.save_password_checkbox.pack(anchor="w", padx=10, pady=(0,5))
         
         # Checkbox para verificação SSL
         self.verify_ssl_var = ctk.BooleanVar(value=False)
-        self.verify_ssl_checkbox = ctk.CTkCheckBox(self.config_frame, text="Verificar certificado SSL", 
+        self.verify_ssl_checkbox = ctk.CTkCheckBox(config_frame, text="Verificar certificado SSL", 
                                                   variable=self.verify_ssl_var)
         self.verify_ssl_checkbox.pack(anchor="w", padx=10, pady=(0,5))
         
         # Checkbox para bypass de restrições
         self.bypass_restrictions_var = ctk.BooleanVar(value=True)
-        self.bypass_restrictions_checkbox = ctk.CTkCheckBox(self.config_frame, 
+        self.bypass_restrictions_checkbox = ctk.CTkCheckBox(config_frame, 
                                                            text="Contornar restrições de permissão", 
                                                            variable=self.bypass_restrictions_var)
         self.bypass_restrictions_checkbox.pack(anchor="w", padx=10, pady=(0,5))
         
         # Checkbox para modo bot
         self.bot_mode_var = ctk.BooleanVar(value=False)
-        self.bot_mode_checkbox = ctk.CTkCheckBox(self.config_frame, 
+        self.bot_mode_checkbox = ctk.CTkCheckBox(config_frame, 
                                                 text="Usar modo bot (para contas com privilégios)", 
                                                 variable=self.bot_mode_var)
         self.bot_mode_checkbox.pack(anchor="w", padx=10, pady=(0,5))
         
         # Checkbox para expansão de templates
         self.expand_templates_var = ctk.BooleanVar(value=True)
-        self.expand_templates_checkbox = ctk.CTkCheckBox(self.config_frame, 
+        self.expand_templates_checkbox = ctk.CTkCheckBox(config_frame, 
                                                         text="Expandir templates (conteúdo completo)", 
                                                         variable=self.expand_templates_var)
         self.expand_templates_checkbox.pack(anchor="w", padx=10, pady=(0,10))
         
         # Botões de login
-        self.login_button_frame = ctk.CTkFrame(main_frame)
-        self.login_button_frame.pack(fill="x", padx=20, pady=10)
+        login_button_frame = ctk.CTkFrame(login_view)
+        login_button_frame.pack(fill="x", padx=20, pady=10)
         
-        self.connect_btn = ctk.CTkButton(self.login_button_frame, text="Conectar", command=self.connect_to_wiki)
+        self.connect_btn = ctk.CTkButton(login_button_frame, text="Conectar", command=self.connect_to_wiki)
         self.connect_btn.pack(side="left", padx=10, pady=10)
         
-        self.save_btn = ctk.CTkButton(self.login_button_frame, text="Salvar Config", command=self.save_config)
+        self.save_btn = ctk.CTkButton(login_button_frame, text="Salvar Config", command=self.save_config)
         self.save_btn.pack(side="left", padx=10, pady=10)
         
-        self.load_btn = ctk.CTkButton(self.login_button_frame, text="Carregar Config", command=self.load_config)
+        self.load_btn = ctk.CTkButton(login_button_frame, text="Carregar Config", command=self.load_config)
         self.load_btn.pack(side="left", padx=10, pady=10)
         
-        self.config_btn = ctk.CTkButton(self.login_button_frame, text="Configurações", command=self.open_config_window)
-        self.config_btn.pack(side="left", padx=10, pady=10)
+        # Botão Sair (só aparece quando conectado)
+        self.logout_btn = ctk.CTkButton(login_button_frame, text="Sair", command=self.logout, 
+                                       fg_color="red", hover_color="darkred", state="disabled")
+        self.logout_btn.pack(side="right", padx=10, pady=10)
         
-        # Frame conectado (inicialmente oculto)
-        self.connected_frame = ctk.CTkFrame(main_frame)
+        # Status da conexão
+        self.status_label = ctk.CTkLabel(login_view, text="Status: Desconectado", 
+                                        font=ctk.CTkFont(size=12))
+        self.status_label.pack(pady=10)
+        
+        return login_view
+    
+    def create_pages_view(self):
+        """Cria a view de páginas"""
+        pages_view = ctk.CTkFrame(self.content_area)
         
         # Informações da conexão
-        self.connection_info_label = ctk.CTkLabel(self.connected_frame, text="", 
+        self.connection_info_label = ctk.CTkLabel(pages_view, text="", 
                                                  font=ctk.CTkFont(size=14, weight="bold"))
         self.connection_info_label.pack(pady=10)
         
         # Botões para usuário conectado
-        connected_buttons_frame = ctk.CTkFrame(self.connected_frame)
+        connected_buttons_frame = ctk.CTkFrame(pages_view)
         connected_buttons_frame.pack(fill="x", padx=20, pady=10)
-        
-        self.test_btn = ctk.CTkButton(connected_buttons_frame, text="Testar Conexão", command=self.test_connection)
-        self.test_btn.pack(side="left", padx=10, pady=10)
         
         self.list_prefixes_btn = ctk.CTkButton(connected_buttons_frame, text="Listar Prefixos", command=self.list_page_prefixes)
         self.list_prefixes_btn.pack(side="left", padx=10, pady=10)
         
         # Frame para botões de páginas
-        pages_buttons_frame = ctk.CTkFrame(self.connected_frame)
+        pages_buttons_frame = ctk.CTkFrame(pages_view)
         pages_buttons_frame.pack(fill="x", padx=20, pady=5)
         
         self.load_cache_btn = ctk.CTkButton(pages_buttons_frame, text="Carregar Cache", command=self.load_pages_cache)
@@ -135,80 +284,96 @@ class MediaWikiApp:
         self.refresh_pages_btn = ctk.CTkButton(pages_buttons_frame, text="Atualizar da API", command=self.refresh_pages_from_api)
         self.refresh_pages_btn.pack(side="left", padx=10, pady=10)
         
-        self.list_pages_btn = ctk.CTkButton(pages_buttons_frame, text="Mostrar Páginas", command=self.show_cached_pages)
-        self.list_pages_btn.pack(side="left", padx=10, pady=10)
-        
         # Frame para ações de extração
-        extraction_buttons_frame = ctk.CTkFrame(self.connected_frame)
+        extraction_buttons_frame = ctk.CTkFrame(pages_view)
         extraction_buttons_frame.pack(fill="x", padx=20, pady=5)
         
         self.extract_pages_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair Pendentes", command=self.extract_pending_content)
         self.extract_pages_btn.pack(side="left", padx=10, pady=10)
         
         # Adicionar botão para salvar arquivos
-        self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Markdown", 
+        self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Wikitext", 
                                           command=self.save_extracted_files, state="disabled")
         self.save_files_btn.pack(side="left", padx=10, pady=10)
         
-        self.reset_status_btn = ctk.CTkButton(extraction_buttons_frame, text="Reset Status", 
-                                            command=self.reset_pages_status, fg_color="orange", hover_color="darkorange")
-        self.reset_status_btn.pack(side="left", padx=10, pady=10)
-        
-        self.logout_btn = ctk.CTkButton(extraction_buttons_frame, text="Sair", command=self.logout, 
-                                       fg_color="red", hover_color="darkred")
-        self.logout_btn.pack(side="right", padx=10, pady=10)
-        
-        # Status
-        self.status_label = ctk.CTkLabel(main_frame, text="Status: Desconectado", 
-                                        font=ctk.CTkFont(size=12))
-        self.status_label.pack(pady=10)
-        
         # Lista de prefixos/páginas
-        self.content_frame = ctk.CTkFrame(main_frame)
-        self.content_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        content_frame = ctk.CTkFrame(pages_view)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=10)
         
-        ctk.CTkLabel(self.content_frame, text="Conteúdo da Wiki:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10,0))
+        ctk.CTkLabel(content_frame, text="Conteúdo da Wiki:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10,0))
         
         # Progress bar
-        self.progress_label = ctk.CTkLabel(self.content_frame, text="")
+        self.progress_label = ctk.CTkLabel(content_frame, text="")
         self.progress_label.pack(anchor="w", padx=10, pady=(5,0))
         
-        self.progress_bar = ctk.CTkProgressBar(self.content_frame)
+        self.progress_bar = ctk.CTkProgressBar(content_frame)
         self.progress_bar.pack(fill="x", padx=10, pady=(5,5))
         self.progress_bar.set(0)
         
         # Frame para seleção de páginas
-        self.pages_selection_frame = ctk.CTkScrollableFrame(self.content_frame, height=200)
+        self.pages_selection_frame = ctk.CTkScrollableFrame(content_frame, height=200)
         self.pages_selection_frame.pack(fill="both", expand=True, padx=10, pady=(5,5))
         
         # Botões de seleção
-        self.selection_buttons_frame = ctk.CTkFrame(self.content_frame)
-        self.selection_buttons_frame.pack(fill="x", padx=10, pady=(0,5))
+        selection_buttons_frame = ctk.CTkFrame(content_frame)
+        selection_buttons_frame.pack(fill="x", padx=10, pady=(0,5))
         
-        self.select_all_btn = ctk.CTkButton(self.selection_buttons_frame, text="Selecionar Tudo", 
+        self.select_all_btn = ctk.CTkButton(selection_buttons_frame, text="Selecionar Tudo", 
                                           command=self.select_all_pages, width=120)
         self.select_all_btn.pack(side="left", padx=(0,5))
         
-        self.select_none_btn = ctk.CTkButton(self.selection_buttons_frame, text="Deselecionar Tudo", 
+        self.select_none_btn = ctk.CTkButton(selection_buttons_frame, text="Deselecionar Tudo", 
                                            command=self.deselect_all_pages, width=120)
         self.select_none_btn.pack(side="left", padx=(0,5))
         
-        self.selected_count_label = ctk.CTkLabel(self.selection_buttons_frame, text="0 páginas selecionadas")
+        self.selected_count_label = ctk.CTkLabel(selection_buttons_frame, text="0 páginas selecionadas")
         self.selected_count_label.pack(side="right", padx=(5,0))
         
         # Textbox para visualização de resultados
-        self.content_textbox = ctk.CTkTextbox(self.content_frame, height=100)
+        self.content_textbox = ctk.CTkTextbox(content_frame, height=100)
         self.content_textbox.pack(fill="x", padx=10, pady=(0,10))
         
-        # Inicializar lista de checkboxes de páginas
-        self.page_checkboxes = []
-        self.current_pages = []
+        return pages_view
+    
+    def create_config_view(self):
+        """Cria a view de configurações"""
+        config_view = ctk.CTkFrame(self.content_area)
         
-        # Inicializar variável para conteúdo extraído
-        self.extracted_content = {}
+        # Botão para abrir configurações avançadas
+        config_button_frame = ctk.CTkFrame(config_view)
+        config_button_frame.pack(fill="x", padx=20, pady=20)
         
-        # Carregar configurações automaticamente
-        self.load_config(show_message=False)
+        self.config_advanced_btn = ctk.CTkButton(config_button_frame, text="Abrir Configurações Avançadas", 
+                                               command=self.open_config_window, 
+                                               font=ctk.CTkFont(size=16), height=40)
+        self.config_advanced_btn.pack(pady=20)
+        
+        # Botão Testar Conexão (só aparece quando conectado)
+        self.test_btn = ctk.CTkButton(config_button_frame, text="Testar Conexão", command=self.test_connection,
+                                     state="disabled", font=ctk.CTkFont(size=14), height=35)
+        self.test_btn.pack(pady=(0, 20))
+        
+        # Informações sobre configurações
+        info_frame = ctk.CTkFrame(config_view)
+        info_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        info_text = """
+        📋 Configurações Disponíveis:
+        
+        • Conexão: URLs, credenciais e configurações de SSL
+        • Extração: Configurações de templates e parsing
+        • Cache: Gerenciamento de cache de páginas
+        • Interface: Personalização da interface do usuário
+        
+        Clique no botão acima para acessar todas as configurações avançadas.
+        """
+        
+        info_label = ctk.CTkLabel(info_frame, text=info_text, 
+                                 font=ctk.CTkFont(size=14), 
+                                 justify="left")
+        info_label.pack(pady=20, padx=20, anchor="w")
+        
+        return config_view
         
     def log_message(self, message):
         """Adiciona mensagem ao log interno"""
@@ -235,35 +400,34 @@ class MediaWikiApp:
         # Executar em thread separada para não travar a UI
         threading.Thread(target=self._connect_worker, args=(url, username, password), daemon=True).start()
         
-    def show_login_screen(self):
-        """Mostra a tela de login e oculta a tela conectada"""
-        self.config_frame.pack(fill="x", padx=20, pady=10)
-        self.login_button_frame.pack(fill="x", padx=20, pady=10)
-        self.connected_frame.pack_forget()
-        self.is_connected = False
-        
-    def show_connected_screen(self):
-        """Mostra a tela conectada e oculta a tela de login"""
-        self.config_frame.pack_forget()
-        self.login_button_frame.pack_forget()
-        self.connected_frame.pack(fill="x", padx=20, pady=10)
-        self.is_connected = True
-        
-        # Atualizar informações da conexão
-        username = self.username_entry.get()
-        api_url = self.url_entry.get()
-        self.connection_info_label.configure(text=f"Conectado como: {username}\nAPI: {api_url}")
-        
     def logout(self):
         """Desconecta e volta para a tela de login"""
         try:
             self.client = None
-            self.log_message("Desconectado com sucesso!")
-            self.update_status("Desconectado", "white")
-            self.show_login_screen()
+            self.logged_in = False
             
-            # Limpar senha por segurança
-            self.password_entry.delete(0, 'end')
+            self.log_message("Desconectado com sucesso!")
+            
+            # Otimização: Agrupar todas as atualizações da UI
+            def update_ui_after_logout():
+                self.update_status("Desconectado", "white")
+                self.connection_status.configure(text="● Desconectado", text_color="red")
+                self.nav_buttons["pages"].configure(state="disabled")
+                self.test_btn.configure(state="disabled")
+                self.logout_btn.configure(state="disabled")
+                
+                # Limpar informações de conexão
+                if hasattr(self, 'connection_info_label'):
+                    self.connection_info_label.configure(text="")
+                
+                # Navegar de volta para login
+                self.navigate_to("login")
+                
+                # Limpar senha por segurança
+                self.password_entry.delete(0, 'end')
+            
+            # Uma única operação da UI
+            update_ui_after_logout()
             
         except Exception as e:
             self.log_message(f"ERRO ao desconectar: {str(e)}")
@@ -302,15 +466,38 @@ class MediaWikiApp:
             
             if self.client.login():
                 self.log_message("Conexão estabelecida com sucesso!")
-                self.root.after(0, lambda: self.update_status("Conectado", "green"))
-                self.root.after(0, self.show_connected_screen)
+                self.logged_in = True
+                
+                # Otimização: Agrupar atualizações da UI em uma única operação
+                def update_ui_after_login():
+                    self.update_status("Conectado", "green")
+                    self.connection_status.configure(text="● Conectado", text_color="green")
+                    self.nav_buttons["pages"].configure(state="normal")
+                    self.test_btn.configure(state="normal")
+                    self.logout_btn.configure(state="normal")
+                    self.navigate_to("pages")
+                    
+                    # Atualizar informações de conexão na view de páginas
+                    if hasattr(self, 'connection_info_label'):
+                        site_info = self.client.get_site_info()
+                        if site_info:
+                            info_text = f"Conectado a: {site_info.get('sitename', 'Wiki')} | Usuário: {username}"
+                            self.connection_info_label.configure(text=info_text)
+                
+                # Uma única chamada root.after ao invés de múltiplas
+                self.root.after(0, update_ui_after_login)
+                
             else:
                 self.log_message("ERRO: Falha na autenticação")
+                self.logged_in = False
                 self.root.after(0, lambda: self.update_status("Erro de autenticação", "red"))
+                self.root.after(0, lambda: self.connection_status.configure(text="● Falha na autenticação", text_color="red"))
                 
         except Exception as e:
             self.log_message(f"ERRO: {str(e)}")
+            self.logged_in = False
             self.root.after(0, lambda: self.update_status("Erro de conexão", "red"))
+            self.root.after(0, lambda: self.connection_status.configure(text="● Erro de conexão", text_color="red"))
         finally:
             self.root.after(0, lambda: self.connect_btn.configure(state="normal"))
             
@@ -364,37 +551,58 @@ class MediaWikiApp:
             self.log_message(f"ERRO ao salvar configurações: {str(e)}")
     
     def load_config(self, show_message=True):
-        """Carrega as configurações salvas"""
+        """Carrega as configurações salvas (otimizado - assíncrono)"""
+        if show_message:
+            # Para carregamento com mensagem, executar em thread para não travar UI
+            threading.Thread(target=self._load_config_worker, args=(show_message,), daemon=True).start()
+        else:
+            # Para carregamento silencioso (inicialização), executar diretamente
+            self._load_config_worker(show_message)
+    
+    def _load_config_worker(self, show_message=True):
+        """Worker thread para carregamento de configurações"""
         try:
             config_data = self.config_manager.load_config()
             
-            if config_data:
-                self.url_entry.delete(0, 'end')
-                self.url_entry.insert(0, config_data.get('api_url', ''))
-                
-                self.username_entry.delete(0, 'end')
-                self.username_entry.insert(0, config_data.get('username', ''))
-                
-                # Carregar configuração SSL
-                self.verify_ssl_var.set(config_data.get('verify_ssl', False))
-                self.bypass_restrictions_var.set(config_data.get('bypass_restrictions', True))
-                self.bot_mode_var.set(config_data.get('bot_mode', False))
-                self.expand_templates_var.set(config_data.get('expand_templates', True))
-                
-                if 'password' in config_data:
-                    self.password_entry.delete(0, 'end')
-                    self.password_entry.insert(0, config_data.get('password', ''))
-                    self.save_password_var.set(True)
-                
-                if show_message:
-                    self.log_message("Configurações carregadas com sucesso!")
+            def update_ui_with_config():
+                if config_data:
+                    self.url_entry.delete(0, 'end')
+                    self.url_entry.insert(0, config_data.get('api_url', ''))
                     
+                    self.username_entry.delete(0, 'end')
+                    self.username_entry.insert(0, config_data.get('username', ''))
+                    
+                    # Carregar configuração SSL
+                    self.verify_ssl_var.set(config_data.get('verify_ssl', False))
+                    self.bypass_restrictions_var.set(config_data.get('bypass_restrictions', True))
+                    self.bot_mode_var.set(config_data.get('bot_mode', False))
+                    self.expand_templates_var.set(config_data.get('expand_templates', True))
+                    
+                    if 'password' in config_data:
+                        self.password_entry.delete(0, 'end')
+                        self.password_entry.insert(0, config_data.get('password', ''))
+                        self.save_password_var.set(True)
+                    
+                    if show_message:
+                        self.log_message("Configurações carregadas com sucesso!")
+                        
+                else:
+                    if show_message:
+                        self.log_message("Nenhuma configuração salva encontrada.")
+            
+            # Atualizar UI na thread principal
+            if show_message:
+                self.root.after(0, update_ui_with_config)
             else:
-                if show_message:
-                    self.log_message("Nenhuma configuração salva encontrada.")
-                    
+                # Para carregamento silencioso, executar diretamente
+                update_ui_with_config()
+                        
         except Exception as e:
-            self.log_message(f"ERRO ao carregar configurações: {str(e)}")
+            error_msg = f"ERRO ao carregar configurações: {str(e)}"
+            if show_message:
+                self.root.after(0, lambda: self.log_message(error_msg))
+            else:
+                self.log_message(error_msg)
     
     def list_page_prefixes(self):
         """Lista os prefixos de páginas da wiki"""
@@ -442,39 +650,37 @@ class MediaWikiApp:
             self.root.after(0, lambda: self.list_prefixes_btn.configure(state="normal"))
     
     def load_pages_cache(self):
-        """Carrega páginas do cache local"""
+        """Carrega páginas do cache local e exibe sistema de navegação simples"""
         try:
             if self.pages_cache.load_cache():
                 stats = self.pages_cache.get_statistics()
                 
-                # Mostrar estatísticas do cache
-                stats_text = f"""=== CACHE DE PÁGINAS CARREGADO ===
-Total de páginas: {stats['total_pages']:,}
-Páginas pendentes: {stats['pending_pages']:,}
-Páginas processadas: {stats['processed_pages']:,}
-Progresso: {stats['progress_percentage']:.1f}%
+                # Inicializar navegação simples
+                if not hasattr(self, 'current_page'):
+                    self.current_page = 0
+                
+                # Criar interface de navegação
+                self._create_cached_page_checkboxes()
+                
+                # Mostrar estatísticas gerais
+                stats_text = f"""=== PÁGINAS PENDENTES PARA EXTRAÇÃO ===
+Total no cache: {stats['total_pages']:,} páginas
+Páginas pendentes: {stats['pending_pages']:,} páginas
+Páginas processadas: {stats['processed_pages']:,} páginas
+Progresso geral: {stats['progress_percentage']:.1f}%
 Última atualização: {stats['last_updated'] or 'Nunca'}
 
-=== PRIMEIRAS PÁGINAS ===
+📑 Use a navegação acima para explorar as páginas pendentes
+✅ Selecione as páginas desejadas e clique em "Extrair Pendentes"
+📄 Mostrando 50 páginas por vez para melhor performance
 """
-                
-                # Mostrar algumas páginas como exemplo
-                sample_pages = self.pages_cache.pages_data[:10]
-                for page in sample_pages:
-                    status_text = "✓ Processada" if page['status'] == 1 else "⏳ Pendente"
-                    stats_text += f"\n{status_text} - {page['title']} (ID: {page['pageid']})"
-                
-                if len(self.pages_cache.pages_data) > 10:
-                    stats_text += f"\n... e mais {len(self.pages_cache.pages_data) - 10} páginas"
                 
                 self.content_textbox.delete("1.0", "end")
                 self.content_textbox.insert("1.0", stats_text)
                 
-                # Criar checkboxes para páginas pendentes
-                self._create_cached_page_checkboxes()
-                
-                self.update_status(f"Cache carregado: {stats['total_pages']:,} páginas", "green")
-                self.log_message(f"Cache carregado com {stats['total_pages']} páginas")
+                status_msg = f"Cache carregado - {stats['pending_pages']:,} páginas pendentes disponíveis"
+                self.update_status(status_msg, "green")
+                self.log_message(f"Cache carregado com {stats['total_pages']} páginas | {stats['pending_pages']} pendentes | Navegação ativa")
                 
             else:
                 self.content_textbox.delete("1.0", "end")
@@ -521,12 +727,20 @@ Progresso: {stats['progress_percentage']:.1f}%
                 if self.pages_cache.save_cache():
                     stats = self.pages_cache.get_statistics()
                     
+                    # Inicializar navegação simples se não existir
+                    if not hasattr(self, 'current_page'):
+                        self.current_page = 0
+                    
                     result_text = f"""=== CACHE ATUALIZADO COM SUCESSO ===
 Total de páginas: {stats['total_pages']:,}
 Novas páginas adicionadas: {new_pages_count:,}
 Páginas pendentes: {stats['pending_pages']:,}
 Páginas processadas: {stats['processed_pages']:,}
 Progresso geral: {stats['progress_percentage']:.1f}%
+
+ Use a navegação acima para explorar as páginas pendentes
+✅ Selecione as páginas desejadas e clique em "Extrair Pendentes"
+📄 Mostrando 50 páginas por vez para melhor performance
 
 Cache salvo em: config/pages_cache.json
 """
@@ -536,7 +750,7 @@ Cache salvo em: config/pages_cache.json
                     self.root.after(0, lambda: self.update_status(f"Cache atualizado: {stats['total_pages']:,} páginas", "green"))
                     self.root.after(0, lambda: self.progress_bar.set(1.0))
                     
-                    # Atualizar checkboxes
+                    # Atualizar checkboxes com sistema de navegação
                     self.root.after(0, self._create_cached_page_checkboxes)
                     
                     self.log_message(f"Cache atualizado: {stats['total_pages']} páginas ({new_pages_count} novas)")
@@ -559,106 +773,241 @@ Cache salvo em: config/pages_cache.json
             self.root.after(0, lambda: self.refresh_pages_btn.configure(state="normal"))
             self.root.after(0, lambda: self.progress_label.configure(text=""))
     
-    def show_cached_pages(self):
-        """Mostra páginas do cache com filtros"""
-        if not self.pages_cache.pages_data:
-            self.load_pages_cache()
-            return
-        
-        stats = self.pages_cache.get_statistics()
-        pending_pages = self.pages_cache.get_pending_pages()
-        
-        # Criar checkboxes apenas para páginas pendentes (mais eficiente)
-        self._create_cached_page_checkboxes()
-        
-        # Mostrar estatísticas
-        stats_text = f"""=== PÁGINAS EM CACHE ===
-Total: {stats['total_pages']:,} páginas
-Pendentes: {stats['pending_pages']:,} páginas
-Processadas: {stats['processed_pages']:,} páginas
-Progresso: {stats['progress_percentage']:.1f}%
-
-Mostrando páginas pendentes para seleção...
-"""
-        
-        self.content_textbox.delete("1.0", "end")
-        self.content_textbox.insert("1.0", stats_text)
-        
-        self.update_status(f"Cache: {stats['pending_pages']:,} pendentes de {stats['total_pages']:,}", "green")
-        self.log_message(f"Exibindo cache: {stats['pending_pages']} páginas pendentes")
-    
     def _create_cached_page_checkboxes(self):
-        """Cria checkboxes para páginas pendentes do cache"""
-        # Limpar checkboxes existentes
-        for checkbox in self.page_checkboxes:
-            checkbox.destroy()
+        """Cria checkboxes para páginas pendentes do cache com navegação simples"""
+        # Limpar TODOS os widgets do frame de seleção (checkboxes + controles de navegação)
+        for widget in self.pages_selection_frame.winfo_children():
+            widget.destroy()
         self.page_checkboxes.clear()
         
-        # Obter páginas pendentes (não processadas)
-        pending_pages = self.pages_cache.get_pending_pages()
+        # Inicializar controles de paginação simples
+        if not hasattr(self, 'current_page'):
+            self.current_page = 0
         
-        # Limitar exibição para não sobrecarregar interface (mostrar até 500 páginas)
-        display_pages = pending_pages[:500]
+        # Fixar em 50 páginas por página
+        self.pages_per_page = 50
         
-        for page in display_pages:
+        # Obter páginas pendentes (sem filtros)
+        all_pages = self._get_filtered_pages()
+        
+        # Calcular paginação
+        total_pages = len(all_pages)
+        total_page_count = max(1, (total_pages + self.pages_per_page - 1) // self.pages_per_page)
+        
+        # Ajustar página atual se necessário
+        if self.current_page >= total_page_count:
+            self.current_page = max(0, total_page_count - 1)
+        
+        # Obter páginas da página atual
+        start_idx = self.current_page * self.pages_per_page
+        end_idx = min(start_idx + self.pages_per_page, total_pages)
+        display_pages = all_pages[start_idx:end_idx]
+        
+        # Criar controles de navegação
+        self._create_pagination_controls(total_pages, total_page_count)
+        
+        # Separador
+        separator = ctk.CTkFrame(self.pages_selection_frame, height=2)
+        separator.pack(fill="x", padx=10, pady=5)
+        
+        # Informações da página atual
+        if total_pages > 0:
+            page_info = ctk.CTkLabel(
+                self.pages_selection_frame,
+                text=f"📄 Mostrando {len(display_pages)} de {total_pages} páginas pendentes | Página {self.current_page + 1} de {total_page_count}",
+                font=ctk.CTkFont(size=12, weight="bold")
+            )
+            page_info.pack(pady=(5, 10))
+        
+        # Otimização: criar widgets em lote
+        self._batch_ui_update = True
+        
+        for i, page in enumerate(display_pages):
             title = page.get('title', 'Sem título')
             page_id = page.get('pageid', 'N/A')
             
             # Criar variável para o checkbox
-            var = ctk.BooleanVar(value=True)  # Selecionado por padrão
+            var = ctk.BooleanVar(value=False)  # Desmarcado por padrão
             
-            # Criar frame para organizar checkbox e info da página
+            # Frame simplificado
             page_frame = ctk.CTkFrame(self.pages_selection_frame)
-            page_frame.pack(fill="x", padx=5, pady=1)
+            page_frame.pack(fill="x", padx=2, pady=1)
             
-            # Status icon
-            status_icon = "⏳"  # Pendente
+            # Status icon (sempre pendente já que filtramos apenas pendentes)
+            status_icon = "⏳"
+            status_text = "Pendente"
             
-            # Checkbox
+            # Checkbox com informações detalhadas
+            checkbox_text = f"{status_icon} {title} (ID: {page_id}) - {status_text}"
             checkbox = ctk.CTkCheckBox(
                 page_frame, 
-                text=f"{status_icon} {title} (ID: {page_id})",
+                text=checkbox_text,
                 variable=var,
-                command=self.update_selected_count
+                command=self._delayed_update_count
             )
-            checkbox.pack(anchor="w", padx=10, pady=3)
+            checkbox.pack(anchor="w", padx=5, pady=2)
             
             # Armazenar referências
             checkbox.page_data = page
             checkbox.var = var
             self.page_checkboxes.append(checkbox)
         
-        # Mostrar aviso se há mais páginas
-        if len(pending_pages) > 500:
-            info_label = ctk.CTkLabel(
-                self.pages_selection_frame, 
-                text=f"⚠️ Mostrando 500 de {len(pending_pages)} páginas pendentes",
-                font=ctk.CTkFont(weight="bold")
+        # Reabilitar callbacks
+        self._batch_ui_update = False
+        
+        # Se não há páginas para mostrar
+        if total_pages == 0:
+            no_pages_label = ctk.CTkLabel(
+                self.pages_selection_frame,
+                text="📭 Nenhuma página pendente encontrada no cache",
+                font=ctk.CTkFont(size=14),
+                text_color="gray"
             )
-            info_label.pack(pady=5)
+            no_pages_label.pack(pady=20)
         
         # Atualizar contador
         self.update_selected_count()
     
-    def reset_pages_status(self):
-        """Reseta o status de todas as páginas para pendente"""
+    def _get_filtered_pages(self):
+        """Obtém todas as páginas pendentes (sem filtros)"""
+        # Obter todas as páginas do cache
+        all_pages = self.pages_cache.pages_data
+        
+        # Retornar apenas páginas pendentes (status 0)
+        return [p for p in all_pages if p.get('status', 0) == 0]
+    
+    def _create_pagination_controls(self, total_pages, total_page_count):
+        """Cria controles simples de navegação de páginas"""
+        # Frame principal para controles de navegação
+        controls_frame = ctk.CTkFrame(self.pages_selection_frame)
+        controls_frame.pack(fill="x", padx=5, pady=10)
+        
+        # Título da navegação
+        ctk.CTkLabel(controls_frame, text="📑 Navegação", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(10, 5))
+        
+        # Frame para controles de paginação
+        nav_frame = ctk.CTkFrame(controls_frame)
+        nav_frame.pack(padx=10, pady=(0, 10))
+        
+        # Botão primeira página
+        first_btn = ctk.CTkButton(nav_frame, text="⏮️ Primeira", command=self._go_to_first_page, width=80, height=30)
+        first_btn.pack(side="left", padx=5, pady=10)
+        
+        # Botão página anterior
+        prev_btn = ctk.CTkButton(nav_frame, text="◀️ Anterior", command=self._go_to_prev_page, width=80, height=30)
+        prev_btn.pack(side="left", padx=2, pady=10)
+        
+        # Informação da página atual
+        page_info_text = f"Página {self.current_page + 1} de {total_page_count}"
+        page_info_label = ctk.CTkLabel(nav_frame, text=page_info_text, font=ctk.CTkFont(size=14, weight="bold"))
+        page_info_label.pack(side="left", padx=20, pady=10)
+        
+        # Botão próxima página
+        next_btn = ctk.CTkButton(nav_frame, text="Próxima ▶️", command=self._go_to_next_page, width=80, height=30)
+        next_btn.pack(side="left", padx=2, pady=10)
+        
+        # Botão última página
+        last_btn = ctk.CTkButton(nav_frame, text="Última ⏭️", command=self._go_to_last_page, width=80, height=30)
+        last_btn.pack(side="left", padx=5, pady=10)
+        
+        # Estatísticas centralizadas
+        stats_frame = ctk.CTkFrame(controls_frame)
+        stats_frame.pack(padx=10, pady=(0, 10))
+        
+        stats = self.pages_cache.get_statistics()
+        stats_text = f"📊 Total: {total_pages} páginas pendentes | Processadas: {stats.get('processed_pages', 0)} | Progresso: {stats.get('progress_percentage', 0):.1f}%"
+        
+        stats_label = ctk.CTkLabel(stats_frame, text=stats_text, font=ctk.CTkFont(size=12))
+        stats_label.pack(padx=10, pady=5)
+    
+    def _delayed_update_count(self):
+        """Callback otimizado que evita atualizações excessivas"""
+        if hasattr(self, '_batch_ui_update') and self._batch_ui_update:
+            return  # Skip durante batch update
+            
+        # Cancelar timer anterior se existir
+        if hasattr(self, '_update_timer'):
+            self.root.after_cancel(self._update_timer)
+        
+        # Agendar atualização com delay para evitar spam
+        self._update_timer = self.root.after(100, self.update_selected_count)
+    
+    def _load_more_pages(self):
+        """Método legado - redireciona para próxima página"""
+        self._go_to_next_page()
+    
+    def _on_search_change(self, event):
+        """Método removido - filtros desabilitados"""
+        pass
+    
+    def _on_status_filter_change(self, selected_status):
+        """Método removido - filtros desabilitados"""
+        pass
+    
+    def _on_pages_per_page_change(self, selected_count):
+        """Método removido - fixado em 50 páginas"""
+        pass
+    
+    def _clear_filters(self):
+        """Método removido - filtros desabilitados"""
+        pass
+    
+    def _go_to_first_page(self):
+        """Vai para a primeira página"""
+        if self.current_page > 0:
+            self.current_page = 0
+            self._refresh_page_display()
+    
+    def _go_to_prev_page(self):
+        """Vai para a página anterior"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._refresh_page_display()
+    
+    def _go_to_next_page(self):
+        """Vai para a próxima página"""
+        all_pages = self._get_filtered_pages()
+        total_page_count = max(1, (len(all_pages) + self.pages_per_page - 1) // self.pages_per_page)
+        
+        if self.current_page < total_page_count - 1:
+            self.current_page += 1
+            self._refresh_page_display()
+    
+    def _go_to_last_page(self):
+        """Vai para a última página"""
+        all_pages = self._get_filtered_pages()
+        total_page_count = max(1, (len(all_pages) + self.pages_per_page - 1) // self.pages_per_page)
+        
+        if self.current_page < total_page_count - 1:
+            self.current_page = total_page_count - 1
+            self._refresh_page_display()
+    
+    def _go_to_specific_page(self, event=None):
+        """Vai para uma página específica"""
         try:
-            self.pages_cache.reset_all_status()
-            if self.pages_cache.save_cache():
-                self.log_message("Status de todas as páginas resetado para pendente")
-                self.update_status("Status resetado", "green")
-                
-                # Atualizar interface se há páginas carregadas
-                if self.pages_cache.pages_data:
-                    self.show_cached_pages()
+            page_num = int(self.goto_page_var.get())
+            all_pages = self._get_filtered_pages()
+            total_page_count = max(1, (len(all_pages) + self.pages_per_page - 1) // self.pages_per_page)
+            
+            # Validar número da página (1-indexed para o usuário)
+            if 1 <= page_num <= total_page_count:
+                self.current_page = page_num - 1  # Converter para 0-indexed
+                self.goto_page_var.set("")  # Limpar campo
+                self._refresh_page_display()
             else:
-                self.log_message("ERRO: Falha ao salvar cache após reset")
-                self.update_status("Erro ao resetar", "red")
+                self.log_message(f"Página inválida: {page_num}. Use um número entre 1 e {total_page_count}")
                 
-        except Exception as e:
-            error_msg = f"ERRO ao resetar status: {str(e)}"
-            self.log_message(error_msg)
-            self.update_status("Erro ao resetar", "red")
+        except ValueError:
+            if self.goto_page_var.get().strip():  # Só mostrar erro se há texto
+                self.log_message("Digite um número de página válido")
+    
+    def _refresh_page_display(self):
+        """Atualiza a exibição das páginas"""
+        self._create_cached_page_checkboxes()
+        
+        # Log simples
+        all_pages = self._get_filtered_pages()
+        self.log_message(f"Navegação: Página {self.current_page + 1} | Total: {len(all_pages)} páginas pendentes")
     
     def extract_pending_content(self):
         """Extrai conteúdo apenas das páginas pendentes selecionadas"""
@@ -816,17 +1165,38 @@ Mostrando páginas pendentes para seleção...
         self.update_selected_count()
     
     def update_selected_count(self):
-        """Atualiza o contador de páginas selecionadas"""
-        selected_count = sum(1 for checkbox in self.page_checkboxes if checkbox.var.get())
-        total_count = len(self.page_checkboxes)
+        """Atualiza o contador de páginas selecionadas com informações de navegação"""
+        # Otimização: usar contador direto ao invés de sum() com generator
+        selected_count = 0
+        for checkbox in self.page_checkboxes:
+            if checkbox.var.get():
+                selected_count += 1
         
-        # Adicionar informação sobre páginas pendentes vs total
-        stats = self.pages_cache.get_statistics()
-        total_pending = stats.get('pending_pages', 0)
+        total_displayed = len(self.page_checkboxes)
         
-        self.selected_count_label.configure(
-            text=f"{selected_count}/{total_count} selecionadas ({total_pending} pendentes no cache)"
-        )
+        # Obter estatísticas do cache
+        all_pending_pages = self._get_filtered_pages()
+        total_pending = len(all_pending_pages)
+        
+        # Informações de navegação
+        if hasattr(self, 'current_page'):
+            current_page_num = self.current_page + 1
+            total_pages = max(1, (total_pending + 50 - 1) // 50)  # 50 páginas fixas por página
+            
+            # Texto detalhado com navegação
+            if total_pending > total_displayed:
+                self.selected_count_label.configure(
+                    text=f"✅ {selected_count}/{total_displayed} selecionadas | Página {current_page_num}/{total_pages} | Total pendentes: {total_pending}"
+                )
+            else:
+                self.selected_count_label.configure(
+                    text=f"✅ {selected_count}/{total_displayed} selecionadas | Total pendentes: {total_pending}"
+                )
+        else:
+            # Fallback para modo legado
+            self.selected_count_label.configure(
+                text=f"✅ {selected_count}/{total_displayed} selecionadas | Total pendentes: {total_pending}"
+            )
     
     def get_selected_pages(self):
         """Retorna lista de páginas selecionadas"""
@@ -1122,6 +1492,273 @@ Mostrando páginas pendentes para seleção...
         
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write(index_md)
+
+    def open_config_window(self):
+        """Abre a janela de configurações"""
+        # Se a janela já existe e está aberta, apenas foca nela
+        if self.config_window and self.config_window.winfo_exists():
+            self.config_window.focus()
+            return
+        
+        # Criar nova janela de configurações
+        self.config_window = ctk.CTkToplevel(self.root)
+        self.config_window.title("Configurações Avançadas")
+        self.config_window.geometry("500x600")
+        self.config_window.resizable(True, True)
+        
+        # Centralizar janela
+        self.config_window.transient(self.root)
+        self.config_window.grab_set()
+        
+        # Criar conteúdo da janela
+        self.create_config_window_content()
+        
+    def create_config_window_content(self):
+        """Cria o conteúdo da janela de configurações"""
+        # Frame principal
+        main_frame = ctk.CTkFrame(self.config_window)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Título
+        title_label = ctk.CTkLabel(main_frame, text="Configurações Avançadas", 
+                                  font=ctk.CTkFont(size=18, weight="bold"))
+        title_label.pack(pady=(0, 20))
+        
+        # Seção de Conexão
+        connection_frame = ctk.CTkFrame(main_frame)
+        connection_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(connection_frame, text="🔗 Configurações de Conexão", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # Timeout de conexão
+        timeout_frame = ctk.CTkFrame(connection_frame)
+        timeout_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(timeout_frame, text="Timeout de conexão (segundos):").pack(anchor="w", padx=10, pady=(10, 0))
+        self.timeout_var = ctk.StringVar(value="30")
+        self.timeout_entry = ctk.CTkEntry(timeout_frame, textvariable=self.timeout_var, width=100)
+        self.timeout_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        
+        # Retries
+        retry_frame = ctk.CTkFrame(connection_frame)
+        retry_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(retry_frame, text="Número de tentativas:").pack(anchor="w", padx=10, pady=(10, 0))
+        self.retry_var = ctk.StringVar(value="3")
+        self.retry_entry = ctk.CTkEntry(retry_frame, textvariable=self.retry_var, width=100)
+        self.retry_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        
+        # Seção de Extração
+        extraction_frame = ctk.CTkFrame(main_frame)
+        extraction_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(extraction_frame, text="📄 Configurações de Extração", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # Tamanho do lote
+        batch_frame = ctk.CTkFrame(extraction_frame)
+        batch_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(batch_frame, text="Tamanho do lote de páginas:").pack(anchor="w", padx=10, pady=(10, 0))
+        self.batch_size_var = ctk.StringVar(value="10")
+        self.batch_size_entry = ctk.CTkEntry(batch_frame, textvariable=self.batch_size_var, width=100)
+        self.batch_size_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        
+        # Delay entre requisições
+        delay_frame = ctk.CTkFrame(extraction_frame)
+        delay_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(delay_frame, text="Delay entre lotes (segundos):").pack(anchor="w", padx=10, pady=(10, 0))
+        self.delay_var = ctk.StringVar(value="1")
+        self.delay_entry = ctk.CTkEntry(delay_frame, textvariable=self.delay_var, width=100)
+        self.delay_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        
+        # Opções de processamento
+        processing_options_frame = ctk.CTkFrame(extraction_frame)
+        processing_options_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Limpar wikitext
+        self.clean_wikitext_var = ctk.BooleanVar(value=True)
+        self.clean_wikitext_checkbox = ctk.CTkCheckBox(processing_options_frame, 
+                                                       text="Limpar wikitext automaticamente", 
+                                                       variable=self.clean_wikitext_var)
+        self.clean_wikitext_checkbox.pack(anchor="w", padx=10, pady=(10, 5))
+        
+        # Incluir metadados
+        self.include_metadata_var = ctk.BooleanVar(value=True)
+        self.include_metadata_checkbox = ctk.CTkCheckBox(processing_options_frame, 
+                                                         text="Incluir metadados nas exportações", 
+                                                         variable=self.include_metadata_var)
+        self.include_metadata_checkbox.pack(anchor="w", padx=10, pady=(0, 5))
+        
+        # Log detalhado
+        self.verbose_logging_var = ctk.BooleanVar(value=False)
+        self.verbose_logging_checkbox = ctk.CTkCheckBox(processing_options_frame, 
+                                                        text="Log detalhado (debug)", 
+                                                        variable=self.verbose_logging_var)
+        self.verbose_logging_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Seção de Cache
+        cache_frame = ctk.CTkFrame(main_frame)
+        cache_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(cache_frame, text="💾 Configurações de Cache", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # Auto-salvar cache
+        self.auto_save_cache_var = ctk.BooleanVar(value=True)
+        self.auto_save_cache_checkbox = ctk.CTkCheckBox(cache_frame, 
+                                                        text="Auto-salvar cache após atualizações", 
+                                                        variable=self.auto_save_cache_var)
+        self.auto_save_cache_checkbox.pack(anchor="w", padx=15, pady=(0, 5))
+        
+        # Backup do cache
+        self.backup_cache_var = ctk.BooleanVar(value=False)
+        self.backup_cache_checkbox = ctk.CTkCheckBox(cache_frame, 
+                                                     text="Criar backup do cache antes de atualizar", 
+                                                     variable=self.backup_cache_var)
+        self.backup_cache_checkbox.pack(anchor="w", padx=15, pady=(0, 15))
+        
+        # Seção de Interface
+        ui_frame = ctk.CTkFrame(main_frame)
+        ui_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(ui_frame, text="🎨 Configurações de Interface", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # Tema
+        theme_frame = ctk.CTkFrame(ui_frame)
+        theme_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(theme_frame, text="Tema da interface:").pack(anchor="w", padx=10, pady=(10, 5))
+        self.theme_var = ctk.StringVar(value="dark")
+        self.theme_menu = ctk.CTkOptionMenu(theme_frame, values=["dark", "light", "system"], 
+                                           variable=self.theme_var, command=self.change_theme)
+        self.theme_menu.pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Máximo de páginas para exibir
+        max_pages_frame = ctk.CTkFrame(ui_frame)
+        max_pages_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(max_pages_frame, text="Máximo de páginas para exibir:").pack(anchor="w", padx=10, pady=(10, 0))
+        self.max_display_pages_var = ctk.StringVar(value="500")
+        self.max_display_pages_entry = ctk.CTkEntry(max_pages_frame, textvariable=self.max_display_pages_var, width=100)
+        self.max_display_pages_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        
+        # Botões da janela
+        buttons_frame = ctk.CTkFrame(main_frame)
+        buttons_frame.pack(fill="x", padx=10, pady=(10, 0))
+        
+        # Botão Restaurar Padrões
+        restore_btn = ctk.CTkButton(buttons_frame, text="Restaurar Padrões", 
+                                   command=self.restore_default_config, fg_color="orange", hover_color="darkorange")
+        restore_btn.pack(side="left", padx=10, pady=15)
+        
+        # Botão Salvar
+        save_btn = ctk.CTkButton(buttons_frame, text="Salvar Configurações", 
+                                command=self.save_advanced_config)
+        save_btn.pack(side="left", padx=10, pady=15)
+        
+        # Botão Fechar
+        close_btn = ctk.CTkButton(buttons_frame, text="Fechar", 
+                                 command=self.config_window.destroy)
+        close_btn.pack(side="right", padx=10, pady=15)
+        
+        # Carregar configurações salvas
+        self.load_advanced_config()
+        
+    def change_theme(self, new_theme):
+        """Muda o tema da interface"""
+        ctk.set_appearance_mode(new_theme)
+        self.log_message(f"Tema alterado para: {new_theme}")
+        
+    def save_advanced_config(self):
+        """Salva as configurações avançadas"""
+        try:
+            # Obter configurações básicas existentes
+            config_data = self.config_manager.load_config() or {}
+            
+            # Adicionar configurações avançadas
+            advanced_config = {
+                'timeout': int(self.timeout_var.get()),
+                'retry_attempts': int(self.retry_var.get()),
+                'batch_size': int(self.batch_size_var.get()),
+                'delay_between_batches': float(self.delay_var.get()),
+                'clean_wikitext': self.clean_wikitext_var.get(),
+                'include_metadata': self.include_metadata_var.get(),
+                'verbose_logging': self.verbose_logging_var.get(),
+                'auto_save_cache': self.auto_save_cache_var.get(),
+                'backup_cache': self.backup_cache_var.get(),
+                'theme': self.theme_var.get(),
+                'max_display_pages': int(self.max_display_pages_var.get())
+            }
+            
+            # Mesclar com configurações existentes
+            config_data.update(advanced_config)
+            
+            # Salvar
+            self.config_manager.save_config(config_data)
+            self.log_message("Configurações avançadas salvas com sucesso!")
+            
+            # Fechar janela
+            self.config_window.destroy()
+            
+        except ValueError as e:
+            self.log_message(f"ERRO: Valores inválidos nas configurações: {e}")
+        except Exception as e:
+            self.log_message(f"ERRO ao salvar configurações avançadas: {e}")
+            
+    def load_advanced_config(self):
+        """Carrega as configurações avançadas salvas"""
+        try:
+            config_data = self.config_manager.load_config()
+            
+            if config_data:
+                # Carregar configurações com valores padrão
+                self.timeout_var.set(str(config_data.get('timeout', 30)))
+                self.retry_var.set(str(config_data.get('retry_attempts', 3)))
+                self.batch_size_var.set(str(config_data.get('batch_size', 10)))
+                self.delay_var.set(str(config_data.get('delay_between_batches', 1)))
+                self.clean_wikitext_var.set(config_data.get('clean_wikitext', True))
+                self.include_metadata_var.set(config_data.get('include_metadata', True))
+                self.verbose_logging_var.set(config_data.get('verbose_logging', False))
+                self.auto_save_cache_var.set(config_data.get('auto_save_cache', True))
+                self.backup_cache_var.set(config_data.get('backup_cache', False))
+                self.theme_var.set(config_data.get('theme', 'dark'))
+                self.max_display_pages_var.set(str(config_data.get('max_display_pages', 500)))
+                
+        except Exception as e:
+            self.log_message(f"ERRO ao carregar configurações avançadas: {e}")
+            
+    def restore_default_config(self):
+        """Restaura configurações para os valores padrão"""
+        self.timeout_var.set("30")
+        self.retry_var.set("3")
+        self.batch_size_var.set("10")
+        self.delay_var.set("1")
+        self.clean_wikitext_var.set(True)
+        self.include_metadata_var.set(True)
+        self.verbose_logging_var.set(False)
+        self.auto_save_cache_var.set(True)
+        self.backup_cache_var.set(False)
+        self.theme_var.set("dark")
+        self.max_display_pages_var.set("500")
+        
+        # Aplicar tema padrão
+        ctk.set_appearance_mode("dark")
+        
+        self.log_message("Configurações restauradas para os valores padrão")
+    
+    def get_max_display_pages(self):
+        """Obtém o número máximo de páginas para exibir das configurações"""
+        try:
+            config_data = self.config_manager.load_config()
+            if config_data:
+                return config_data.get('max_display_pages', 500)
+            return 500
+        except:
+            return 500
 
     def run(self):
         self.root.mainloop()

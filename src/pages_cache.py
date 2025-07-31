@@ -10,7 +10,38 @@ class PagesCache:
         self.cache_file = cache_file
         self.pages_data = []
         self.last_updated = None
+        
+        # Otimização: Índices para acesso rápido O(1)
+        self._pages_by_id = {}      # {pageid: page_dict}
+        self._pages_by_status = {}  # {status: [page_dict, ...]}
+        self._indices_built = False
+        
         self.load_cache()
+    
+    def _build_indices(self):
+        """Constrói índices para acesso rápido"""
+        self._pages_by_id.clear()
+        self._pages_by_status.clear()
+        
+        for page in self.pages_data:
+            page_id = page.get('pageid')
+            status = page.get('status', 0)
+            
+            # Índice por ID
+            if page_id:
+                self._pages_by_id[page_id] = page
+            
+            # Índice por status
+            if status not in self._pages_by_status:
+                self._pages_by_status[status] = []
+            self._pages_by_status[status].append(page)
+        
+        self._indices_built = True
+    
+    def _ensure_indices(self):
+        """Garante que os índices estão construídos"""
+        if not self._indices_built:
+            self._build_indices()
     
     def load_cache(self) -> bool:
         """Carrega o cache do arquivo JSON"""
@@ -85,38 +116,64 @@ class PagesCache:
             updated_pages.append(updated_page)
         
         self.pages_data = updated_pages
+        # Reconstruir índices após atualização
+        self._build_indices()
         return new_count
     
     def get_pages_by_status(self, status: int) -> List[Dict]:
-        """Retorna páginas filtradas por status"""
-        return [page for page in self.pages_data if page.get('status') == status]
+        """Retorna páginas filtradas por status (otimizado com índices)"""
+        self._ensure_indices()
+        return self._pages_by_status.get(status, []).copy()  # Retorna cópia para segurança
     
     def get_pending_pages(self) -> List[Dict]:
-        """Retorna páginas não processadas (status = 0)"""
+        """Retorna páginas não processadas (status = 0) - otimizado"""
         return self.get_pages_by_status(0)
     
     def get_processed_pages(self) -> List[Dict]:
-        """Retorna páginas processadas (status = 1)"""
+        """Retorna páginas processadas (status = 1) - otimizado"""
         return self.get_pages_by_status(1)
     
     def update_page_status(self, pageid: int, status: int, error_message: str = None) -> bool:
-        """Atualiza o status de uma página específica"""
-        for page in self.pages_data:
-            if page.get('pageid') == pageid:
-                page['status'] = status
-                page['last_processed'] = datetime.now().isoformat()
-                if error_message:
-                    page['error_message'] = error_message
-                elif status == 1:  # Sucesso - limpar erro anterior
-                    page['error_message'] = None
-                return True
+        """Atualiza o status de uma página específica (otimizado com índice)"""
+        self._ensure_indices()
+        
+        # Busca rápida O(1) usando índice
+        page = self._pages_by_id.get(pageid)
+        if page:
+            old_status = page.get('status', 0)
+            
+            # Atualizar dados
+            page['status'] = status
+            page['last_processed'] = datetime.now().isoformat()
+            if error_message:
+                page['error_message'] = error_message
+            elif status == 1:  # Sucesso - limpar erro anterior
+                page['error_message'] = None
+            
+            # Atualizar índices apenas se status mudou
+            if old_status != status:
+                # Remover da lista do status antigo
+                if old_status in self._pages_by_status:
+                    self._pages_by_status[old_status] = [
+                        p for p in self._pages_by_status[old_status] if p.get('pageid') != pageid
+                    ]
+                
+                # Adicionar na lista do novo status
+                if status not in self._pages_by_status:
+                    self._pages_by_status[status] = []
+                self._pages_by_status[status].append(page)
+            
+            return True
         return False
     
     def get_statistics(self) -> Dict:
-        """Retorna estatísticas do cache"""
+        """Retorna estatísticas do cache (otimizado)"""
+        self._ensure_indices()
+        
         total = len(self.pages_data)
-        pending = len(self.get_pending_pages())
-        processed = len(self.get_processed_pages())
+        # Usar índices para contagem rápida
+        pending = len(self._pages_by_status.get(0, []))
+        processed = len(self._pages_by_status.get(1, []))
         
         return {
             'total_pages': total,
@@ -140,18 +197,21 @@ class PagesCache:
             page['status'] = 0
             page['last_processed'] = None
             page['error_message'] = None
+        
+        # Reconstruir índices após reset
+        self._build_indices()
     
     def mark_pages_as_processed(self, pageids: List[int]):
-        """Marca múltiplas páginas como processadas"""
+        """Marca múltiplas páginas como processadas (otimizado)"""
+        self._ensure_indices()
+        
         for pageid in pageids:
             self.update_page_status(pageid, 1)
     
     def get_page_by_id(self, pageid: int) -> Optional[Dict]:
-        """Retorna uma página específica por ID"""
-        for page in self.pages_data:
-            if page.get('pageid') == pageid:
-                return page
-        return None
+        """Retorna uma página específica por ID (otimizado com índice)"""
+        self._ensure_indices()
+        return self._pages_by_id.get(pageid)
     
     def remove_deleted_pages(self, current_pageids: List[int]):
         """Remove páginas que não existem mais na wiki"""
@@ -160,3 +220,6 @@ class PagesCache:
             page for page in self.pages_data 
             if page.get('pageid') in current_ids_set
         ]
+        
+        # Reconstruir índices após remoção
+        self._build_indices()

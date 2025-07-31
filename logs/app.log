@@ -251,3 +251,161 @@
 2025-07-30 22:14:01,678 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
 2025-07-30 22:14:01,679 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
 2025-07-30 22:14:03,214 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 22:21:20,216 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 22:21:20,218 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 22:21:20,219 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 22:21:21,469 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 22:22:06,089 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-30 22:22:44,979 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-30 22:35:30,227 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 22:35:30,229 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 22:35:30,229 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 22:35:31,547 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 22:35:58,420 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-30 22:36:36,263 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-30 22:42:32,459 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 22:42:32,460 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 22:42:32,461 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 22:42:34,010 - MediaWikiApp - INFO - ERRO: Falha na autenticação
+2025-07-30 22:42:38,057 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 22:42:38,059 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 22:42:38,059 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 22:42:39,253 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 22:42:59,986 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-30 22:43:25,667 - MediaWikiApp - INFO - Testando conexão - consultando informações do site...
+2025-07-30 22:43:25,925 - MediaWikiApp - INFO - Teste bem-sucedido!
+2025-07-30 22:43:25,925 - MediaWikiApp - INFO - Nome do site: Wiki Hepta
+2025-07-30 22:43:25,925 - MediaWikiApp - INFO - Versão: MediaWiki 1.29.1
+2025-07-30 22:54:26,384 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 22:54:26,385 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 22:54:26,388 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 22:54:27,669 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 22:54:32,593 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-30 22:54:41,437 - MediaWikiApp - INFO - Recurso de paginação em desenvolvimento. Mostrando 50 páginas.
+2025-07-30 22:54:51,798 - MediaWikiApp - INFO - Recurso de paginação em desenvolvimento. Mostrando 50 páginas.
+2025-07-30 22:55:13,730 - MediaWikiApp - INFO - Recurso de paginação em desenvolvimento. Mostrando 50 páginas.
+2025-07-30 22:55:28,074 - MediaWikiApp - INFO - Recurso de paginação em desenvolvimento. Mostrando 50 páginas.
+2025-07-30 23:02:10,595 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:02:10,597 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:02:10,598 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:02:11,898 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:02:17,058 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-30 23:02:39,072 - MediaWikiApp - INFO - Navegação: Status='pending', Busca='' | Página 2 | Total: 7952 páginas
+2025-07-30 23:02:49,941 - MediaWikiApp - INFO - Navegação: Status='pending', Busca='' | Página 160 | Total: 7952 páginas
+2025-07-30 23:03:14,679 - MediaWikiApp - INFO - Navegação: Status='pending', Busca='' | Página 1 | Total: 7952 páginas
+2025-07-30 23:03:28,948 - MediaWikiApp - INFO - Cache carregado com 7952 páginas
+2025-07-30 23:03:58,978 - MediaWikiApp - INFO - Buscando páginas da API para atualizar cache...
+2025-07-30 23:04:37,161 - MediaWikiApp - INFO - Cache atualizado: 7952 páginas (0 novas)
+2025-07-30 23:07:43,910 - MediaWikiApp - INFO - Sistema de paginação ativo | Mostrando páginas pendentes | Total: 7,952
+2025-07-30 23:08:49,070 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:08:49,072 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:08:49,072 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:08:50,270 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:14:15,393 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:14:15,394 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:14:15,395 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:14:16,649 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:14:26,328 - MediaWikiApp - INFO - Cache carregado com 7952 páginas | Sistema de paginação ativo
+2025-07-30 23:14:35,329 - MediaWikiApp - INFO - Navegação: Status='pending', Busca='' | Página 2 | Total: 7952 páginas
+2025-07-30 23:22:17,679 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:22:17,683 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:22:17,683 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:22:18,858 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:22:25,636 - MediaWikiApp - INFO - Cache carregado com 7952 páginas | 7952 pendentes | Navegação ativa
+2025-07-30 23:22:34,406 - MediaWikiApp - INFO - Navegação: Página 2 | Total: 7952 páginas pendentes
+2025-07-30 23:24:50,911 - MediaWikiApp - INFO - Navegação: Página 3 | Total: 7952 páginas pendentes
+2025-07-30 23:29:10,076 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:29:10,077 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:29:10,077 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:29:11,383 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:30:04,694 - MediaWikiApp - INFO - Cache carregado com 7952 páginas | 7952 pendentes | Navegação ativa
+2025-07-30 23:30:11,616 - MediaWikiApp - INFO - Navegação: Página 2 | Total: 7952 páginas pendentes
+2025-07-30 23:30:19,267 - MediaWikiApp - INFO - Navegação: Página 3 | Total: 7952 páginas pendentes
+2025-07-30 23:30:26,082 - MediaWikiApp - INFO - Navegação: Página 160 | Total: 7952 páginas pendentes
+2025-07-30 23:30:30,258 - MediaWikiApp - INFO - Navegação: Página 1 | Total: 7952 páginas pendentes
+2025-07-30 23:30:35,240 - MediaWikiApp - INFO - Navegação: Página 160 | Total: 7952 páginas pendentes
+2025-07-30 23:30:36,468 - MediaWikiApp - INFO - Navegação: Página 159 | Total: 7952 páginas pendentes
+2025-07-30 23:30:38,310 - MediaWikiApp - INFO - Navegação: Página 158 | Total: 7952 páginas pendentes
+2025-07-30 23:30:39,154 - MediaWikiApp - INFO - Navegação: Página 157 | Total: 7952 páginas pendentes
+2025-07-30 23:30:39,431 - MediaWikiApp - INFO - Navegação: Página 156 | Total: 7952 páginas pendentes
+2025-07-30 23:30:39,697 - MediaWikiApp - INFO - Navegação: Página 155 | Total: 7952 páginas pendentes
+2025-07-30 23:30:39,960 - MediaWikiApp - INFO - Navegação: Página 154 | Total: 7952 páginas pendentes
+2025-07-30 23:30:40,223 - MediaWikiApp - INFO - Navegação: Página 153 | Total: 7952 páginas pendentes
+2025-07-30 23:30:40,485 - MediaWikiApp - INFO - Navegação: Página 152 | Total: 7952 páginas pendentes
+2025-07-30 23:30:40,755 - MediaWikiApp - INFO - Navegação: Página 151 | Total: 7952 páginas pendentes
+2025-07-30 23:30:41,018 - MediaWikiApp - INFO - Navegação: Página 150 | Total: 7952 páginas pendentes
+2025-07-30 23:30:41,279 - MediaWikiApp - INFO - Navegação: Página 149 | Total: 7952 páginas pendentes
+2025-07-30 23:30:41,543 - MediaWikiApp - INFO - Navegação: Página 148 | Total: 7952 páginas pendentes
+2025-07-30 23:30:41,808 - MediaWikiApp - INFO - Navegação: Página 147 | Total: 7952 páginas pendentes
+2025-07-30 23:30:42,072 - MediaWikiApp - INFO - Navegação: Página 146 | Total: 7952 páginas pendentes
+2025-07-30 23:30:42,351 - MediaWikiApp - INFO - Navegação: Página 145 | Total: 7952 páginas pendentes
+2025-07-30 23:30:42,616 - MediaWikiApp - INFO - Navegação: Página 144 | Total: 7952 páginas pendentes
+2025-07-30 23:30:42,893 - MediaWikiApp - INFO - Navegação: Página 143 | Total: 7952 páginas pendentes
+2025-07-30 23:30:43,161 - MediaWikiApp - INFO - Navegação: Página 142 | Total: 7952 páginas pendentes
+2025-07-30 23:30:43,432 - MediaWikiApp - INFO - Navegação: Página 141 | Total: 7952 páginas pendentes
+2025-07-30 23:30:43,696 - MediaWikiApp - INFO - Navegação: Página 140 | Total: 7952 páginas pendentes
+2025-07-30 23:30:43,963 - MediaWikiApp - INFO - Navegação: Página 139 | Total: 7952 páginas pendentes
+2025-07-30 23:30:44,230 - MediaWikiApp - INFO - Navegação: Página 138 | Total: 7952 páginas pendentes
+2025-07-30 23:30:44,496 - MediaWikiApp - INFO - Navegação: Página 137 | Total: 7952 páginas pendentes
+2025-07-30 23:32:14,453 - MediaWikiApp - INFO - Navegação: Página 136 | Total: 7952 páginas pendentes
+2025-07-30 23:32:14,733 - MediaWikiApp - INFO - Navegação: Página 135 | Total: 7952 páginas pendentes
+2025-07-30 23:32:15,007 - MediaWikiApp - INFO - Navegação: Página 134 | Total: 7952 páginas pendentes
+2025-07-30 23:32:15,274 - MediaWikiApp - INFO - Navegação: Página 133 | Total: 7952 páginas pendentes
+2025-07-30 23:32:15,555 - MediaWikiApp - INFO - Navegação: Página 132 | Total: 7952 páginas pendentes
+2025-07-30 23:32:15,819 - MediaWikiApp - INFO - Navegação: Página 131 | Total: 7952 páginas pendentes
+2025-07-30 23:32:16,085 - MediaWikiApp - INFO - Navegação: Página 130 | Total: 7952 páginas pendentes
+2025-07-30 23:32:16,347 - MediaWikiApp - INFO - Navegação: Página 129 | Total: 7952 páginas pendentes
+2025-07-30 23:32:16,792 - MediaWikiApp - INFO - Navegação: Página 128 | Total: 7952 páginas pendentes
+2025-07-30 23:32:17,077 - MediaWikiApp - INFO - Navegação: Página 127 | Total: 7952 páginas pendentes
+2025-07-30 23:32:17,373 - MediaWikiApp - INFO - Navegação: Página 126 | Total: 7952 páginas pendentes
+2025-07-30 23:32:17,639 - MediaWikiApp - INFO - Navegação: Página 125 | Total: 7952 páginas pendentes
+2025-07-30 23:32:17,905 - MediaWikiApp - INFO - Navegação: Página 124 | Total: 7952 páginas pendentes
+2025-07-30 23:32:18,173 - MediaWikiApp - INFO - Navegação: Página 123 | Total: 7952 páginas pendentes
+2025-07-30 23:32:18,438 - MediaWikiApp - INFO - Navegação: Página 122 | Total: 7952 páginas pendentes
+2025-07-30 23:32:18,707 - MediaWikiApp - INFO - Navegação: Página 121 | Total: 7952 páginas pendentes
+2025-07-30 23:32:18,979 - MediaWikiApp - INFO - Navegação: Página 120 | Total: 7952 páginas pendentes
+2025-07-30 23:32:19,259 - MediaWikiApp - INFO - Navegação: Página 119 | Total: 7952 páginas pendentes
+2025-07-30 23:32:19,528 - MediaWikiApp - INFO - Navegação: Página 118 | Total: 7952 páginas pendentes
+2025-07-30 23:32:19,793 - MediaWikiApp - INFO - Navegação: Página 117 | Total: 7952 páginas pendentes
+2025-07-30 23:32:20,062 - MediaWikiApp - INFO - Navegação: Página 116 | Total: 7952 páginas pendentes
+2025-07-30 23:32:20,328 - MediaWikiApp - INFO - Navegação: Página 115 | Total: 7952 páginas pendentes
+2025-07-30 23:32:20,613 - MediaWikiApp - INFO - Navegação: Página 114 | Total: 7952 páginas pendentes
+2025-07-30 23:32:20,896 - MediaWikiApp - INFO - Navegação: Página 113 | Total: 7952 páginas pendentes
+2025-07-30 23:32:21,164 - MediaWikiApp - INFO - Navegação: Página 112 | Total: 7952 páginas pendentes
+2025-07-30 23:32:21,458 - MediaWikiApp - INFO - Navegação: Página 111 | Total: 7952 páginas pendentes
+2025-07-30 23:32:21,727 - MediaWikiApp - INFO - Navegação: Página 110 | Total: 7952 páginas pendentes
+2025-07-30 23:32:21,994 - MediaWikiApp - INFO - Navegação: Página 109 | Total: 7952 páginas pendentes
+2025-07-30 23:32:22,261 - MediaWikiApp - INFO - Navegação: Página 108 | Total: 7952 páginas pendentes
+2025-07-30 23:32:22,526 - MediaWikiApp - INFO - Navegação: Página 107 | Total: 7952 páginas pendentes
+2025-07-30 23:32:22,790 - MediaWikiApp - INFO - Navegação: Página 106 | Total: 7952 páginas pendentes
+2025-07-30 23:32:23,066 - MediaWikiApp - INFO - Navegação: Página 105 | Total: 7952 páginas pendentes
+2025-07-30 23:32:23,328 - MediaWikiApp - INFO - Navegação: Página 104 | Total: 7952 páginas pendentes
+2025-07-30 23:32:23,603 - MediaWikiApp - INFO - Navegação: Página 103 | Total: 7952 páginas pendentes
+2025-07-30 23:32:23,866 - MediaWikiApp - INFO - Navegação: Página 102 | Total: 7952 páginas pendentes
+2025-07-30 23:32:24,128 - MediaWikiApp - INFO - Navegação: Página 101 | Total: 7952 páginas pendentes
+2025-07-30 23:32:24,392 - MediaWikiApp - INFO - Navegação: Página 100 | Total: 7952 páginas pendentes
+2025-07-30 23:32:24,656 - MediaWikiApp - INFO - Navegação: Página 99 | Total: 7952 páginas pendentes
+2025-07-30 23:32:24,917 - MediaWikiApp - INFO - Navegação: Página 98 | Total: 7952 páginas pendentes
+2025-07-30 23:32:25,186 - MediaWikiApp - INFO - Navegação: Página 97 | Total: 7952 páginas pendentes
+2025-07-30 23:32:25,446 - MediaWikiApp - INFO - Navegação: Página 96 | Total: 7952 páginas pendentes
+2025-07-30 23:32:25,731 - MediaWikiApp - INFO - Navegação: Página 95 | Total: 7952 páginas pendentes
+2025-07-30 23:32:25,994 - MediaWikiApp - INFO - Navegação: Página 94 | Total: 7952 páginas pendentes
+2025-07-30 23:32:26,259 - MediaWikiApp - INFO - Navegação: Página 93 | Total: 7952 páginas pendentes
+2025-07-30 23:32:26,525 - MediaWikiApp - INFO - Navegação: Página 92 | Total: 7952 páginas pendentes
+2025-07-30 23:32:26,793 - MediaWikiApp - INFO - Navegação: Página 91 | Total: 7952 páginas pendentes
+2025-07-30 23:32:27,058 - MediaWikiApp - INFO - Navegação: Página 90 | Total: 7952 páginas pendentes
+2025-07-30 23:32:27,360 - MediaWikiApp - INFO - Navegação: Página 89 | Total: 7952 páginas pendentes
+2025-07-30 23:32:27,622 - MediaWikiApp - INFO - Navegação: Página 88 | Total: 7952 páginas pendentes
+2025-07-30 23:32:30,342 - MediaWikiApp - INFO - Navegação: Página 87 | Total: 7952 páginas pendentes
+2025-07-30 23:32:30,636 - MediaWikiApp - INFO - Navegação: Página 86 | Total: 7952 páginas pendentes
+2025-07-30 23:32:30,902 - MediaWikiApp - INFO - Navegação: Página 85 | Total: 7952 páginas pendentes
+2025-07-30 23:32:31,162 - MediaWikiApp - INFO - Navegação: Página 84 | Total: 7952 páginas pendentes
+2025-07-30 23:33:57,496 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:33:57,499 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:33:57,501 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:33:59,197 - MediaWikiApp - INFO - ERRO: Falha na autenticação
+2025-07-30 23:34:03,696 - MediaWikiApp - INFO - Tentando conectar em: https://wiki.hepta.com.br/w/api.php
+2025-07-30 23:34:03,697 - MediaWikiApp - INFO - AVISO: Verificação SSL desabilitada
+2025-07-30 23:34:03,698 - MediaWikiApp - INFO - INFO: Modo bypass de restrições ativado
+2025-07-30 23:34:04,748 - MediaWikiApp - INFO - Conexão estabelecida com sucesso!
+2025-07-30 23:34:13,728 - MediaWikiApp - INFO - Cache carregado com 7952 páginas | 7952 pendentes | Navegação ativa
