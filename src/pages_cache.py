@@ -223,3 +223,45 @@ class PagesCache:
         
         # Reconstruir índices após remoção
         self._build_indices()
+    
+    def get_page_content(self, pageid: int) -> Optional[str]:
+        """
+        Obtém o conteúdo de uma página do cache
+        
+        Args:
+            pageid: ID da página
+            
+        Returns:
+            Conteúdo da página ou None se não encontrada
+        """
+        self._ensure_indices()
+        page = self._pages_by_id.get(pageid)
+        return page.get('content') if page else None
+    
+    def set_page_content(self, pageid: int, content: str) -> bool:
+        """
+        Define o conteúdo de uma página no cache
+        
+        Args:
+            pageid: ID da página
+            content: Conteúdo da página
+            
+        Returns:
+            True se bem-sucedido, False caso contrário
+        """
+        self._ensure_indices()
+        page = self._pages_by_id.get(pageid)
+        if page:
+            page['content'] = content
+            page['last_processed'] = datetime.now().isoformat()
+            return True
+        return False
+    
+    def get_all_pages(self) -> List[Dict]:
+        """
+        Retorna todas as páginas do cache
+        
+        Returns:
+            Lista de todas as páginas
+        """
+        return self.pages_data.copy()

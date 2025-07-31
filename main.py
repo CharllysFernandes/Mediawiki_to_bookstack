@@ -89,6 +89,18 @@ class MediaWikiApp:
         )
         self.nav_buttons["config"].pack(pady=(0, 10), padx=20)
         
+        # 🆕 Botão Enviar Páginas
+        self.nav_buttons["send_pages"] = ctk.CTkButton(
+            self.nav_rail, 
+            text="📤 Enviar Páginas", 
+            command=lambda: self.navigate_to("send_pages"),
+            width=160,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            state="disabled"  # Desabilitado até fazer login
+        )
+        self.nav_buttons["send_pages"].pack(pady=(0, 10), padx=20)
+        
         # Separador
         separator = ctk.CTkFrame(self.nav_rail, height=2)
         separator.pack(fill="x", padx=20, pady=20)
@@ -106,6 +118,11 @@ class MediaWikiApp:
         self.page_checkboxes = []
         self.current_pages = []
         self.extracted_content = {}
+        
+        # 🆕 Variáveis para funcionalidade Enviar Páginas
+        self.send_pages_checkboxes = []
+        self.selected_target = None
+        self.bookstack_client = None
         
         # Criar todas as views
         self.create_all_views()
@@ -129,6 +146,9 @@ class MediaWikiApp:
         # View de Configurações
         self.views["config"] = self.create_config_view()
         
+        # 🆕 View de Enviar Páginas
+        self.views["send_pages"] = self.create_send_pages_view()
+        
         # Ocultar todas as views inicialmente
         for view in self.views.values():
             view.pack_forget()
@@ -141,7 +161,7 @@ class MediaWikiApp:
                 btn.configure(state="disabled")
             else:
                 # Verificar se deve estar habilitado
-                if btn_name == "pages" and not self.logged_in:
+                if btn_name in ["pages", "send_pages"] and not self.logged_in:
                     btn.configure(state="disabled")
                 else:
                     btn.configure(state="normal")
@@ -393,6 +413,163 @@ class MediaWikiApp:
         info_label.pack(pady=20, padx=20, anchor="w")
         
         return config_view
+    
+    def create_send_pages_view(self):
+        """Cria a view para enviar páginas ao BookStack"""
+        send_pages_view = ctk.CTkFrame(self.content_area)
+        
+        # Título principal
+        title_label = ctk.CTkLabel(send_pages_view, text="📤 Enviar Páginas para BookStack", 
+                                  font=ctk.CTkFont(size=20, weight="bold"))
+        title_label.pack(pady=(20, 10))
+        
+        # Container principal horizontal
+        main_container = ctk.CTkFrame(send_pages_view)
+        main_container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # === PAINEL ESQUERDO - Lista de Páginas ===
+        left_panel = ctk.CTkFrame(main_container)
+        left_panel.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        # Título do painel esquerdo
+        left_title = ctk.CTkLabel(left_panel, text="📄 Páginas em Cache", 
+                                 font=ctk.CTkFont(size=16, weight="bold"))
+        left_title.pack(pady=(15, 10))
+        
+        # Controles de filtro
+        filter_frame = ctk.CTkFrame(left_panel)
+        filter_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        # Filtro por status
+        status_filter_frame = ctk.CTkFrame(filter_frame)
+        status_filter_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(status_filter_frame, text="Filtrar por status:").pack(side="left", padx=(10, 5))
+        self.send_pages_status_filter = ctk.CTkOptionMenu(
+            status_filter_frame, 
+            values=["Todos", "Apenas em Cache (azul)", "Enviadas (verde)"],
+            command=self.filter_send_pages
+        )
+        self.send_pages_status_filter.pack(side="left", padx=5)
+        
+        # Busca por título
+        search_frame = ctk.CTkFrame(filter_frame)
+        search_frame.pack(fill="x", padx=10, pady=(0, 10))
+        
+        ctk.CTkLabel(search_frame, text="Buscar:").pack(side="left", padx=(10, 5))
+        self.send_pages_search_var = ctk.StringVar()
+        self.send_pages_search_entry = ctk.CTkEntry(
+            search_frame, 
+            textvariable=self.send_pages_search_var,
+            placeholder_text="Digite o título da página..."
+        )
+        self.send_pages_search_entry.pack(side="left", fill="x", expand=True, padx=5)
+        self.send_pages_search_entry.bind("<KeyRelease>", self.on_send_pages_search)
+        
+        # Botões de seleção
+        selection_frame = ctk.CTkFrame(left_panel)
+        selection_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        select_all_btn = ctk.CTkButton(selection_frame, text="Selecionar Todas", 
+                                      command=self.select_all_send_pages, width=120)
+        select_all_btn.pack(side="left", padx=(10, 5), pady=10)
+        
+        deselect_all_btn = ctk.CTkButton(selection_frame, text="Deselecionar Todas", 
+                                        command=self.deselect_all_send_pages, width=120)
+        deselect_all_btn.pack(side="left", padx=5, pady=10)
+        
+        # Lista scrollable de páginas
+        self.send_pages_list_frame = ctk.CTkScrollableFrame(left_panel)
+        self.send_pages_list_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Inicializar lista de checkboxes
+        self.send_pages_checkboxes = []
+        
+        # === PAINEL DIREITO - Navegação BookStack ===
+        right_panel = ctk.CTkFrame(main_container)
+        right_panel.pack(side="right", fill="y", padx=(10, 0))
+        right_panel.configure(width=400)
+        
+        # Título do painel direito
+        right_title = ctk.CTkLabel(right_panel, text="📚 Estrutura BookStack", 
+                                  font=ctk.CTkFont(size=16, weight="bold"))
+        right_title.pack(pady=(15, 10))
+        
+        # Status da conexão BookStack
+        self.bookstack_connection_frame = ctk.CTkFrame(right_panel)
+        self.bookstack_connection_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        self.bookstack_connection_status = ctk.CTkLabel(
+            self.bookstack_connection_frame, 
+            text="🔄 Verificando conexão...", 
+            font=ctk.CTkFont(size=12)
+        )
+        self.bookstack_connection_status.pack(pady=10)
+        
+        # Botão para recarregar estrutura
+        reload_btn = ctk.CTkButton(
+            self.bookstack_connection_frame, 
+            text="🔄 Recarregar Estrutura", 
+            command=self.reload_bookstack_structure,
+            width=150
+        )
+        reload_btn.pack(pady=(0, 10))
+        
+        # Navegação hierárquica
+        navigation_frame = ctk.CTkFrame(right_panel)
+        navigation_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+        
+        # Breadcrumb de navegação
+        self.breadcrumb_frame = ctk.CTkFrame(navigation_frame)
+        self.breadcrumb_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.breadcrumb_label = ctk.CTkLabel(
+            self.breadcrumb_frame, 
+            text="📚 Selecione uma estante", 
+            font=ctk.CTkFont(size=12)
+        )
+        self.breadcrumb_label.pack(pady=5)
+        
+        # Lista de navegação
+        self.bookstack_nav_frame = ctk.CTkScrollableFrame(navigation_frame)
+        self.bookstack_nav_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Variáveis para navegação
+        self.current_bookstack_level = "shelves"  # shelves, books, chapters, pages
+        self.current_shelf_id = None
+        self.current_book_id = None
+        self.current_chapter_id = None
+        self.selected_target = None  # Onde enviar as páginas
+        
+        # === PAINEL INFERIOR - Ações ===
+        actions_frame = ctk.CTkFrame(right_panel)
+        actions_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Informação de seleção
+        self.selection_info_label = ctk.CTkLabel(
+            actions_frame, 
+            text="Selecione páginas e destino", 
+            font=ctk.CTkFont(size=12)
+        )
+        self.selection_info_label.pack(pady=(10, 5))
+        
+        # Botão de envio
+        self.send_to_bookstack_btn = ctk.CTkButton(
+            actions_frame, 
+            text="📤 Enviar para BookStack", 
+            command=self.send_selected_pages_to_bookstack,
+            state="disabled",
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#2E8B57", 
+            hover_color="#228B22"
+        )
+        self.send_to_bookstack_btn.pack(pady=10, padx=10, fill="x")
+        
+        # Carregar páginas e estrutura inicial
+        self.load_send_pages_data()
+        
+        return send_pages_view
         
     def log_message(self, message):
         """Adiciona mensagem ao log interno"""
@@ -432,6 +609,7 @@ class MediaWikiApp:
                 self.update_status("Desconectado", "white")
                 self.connection_status.configure(text="● Desconectado", text_color="red")
                 self.nav_buttons["pages"].configure(state="disabled")
+                self.nav_buttons["send_pages"].configure(state="disabled")  # 🆕 Desabilitar botão Enviar Páginas
                 self.test_btn.configure(state="disabled")
                 self.logout_btn.configure(state="disabled")
                 
@@ -492,6 +670,7 @@ class MediaWikiApp:
                     self.update_status("Conectado", "green")
                     self.connection_status.configure(text="● Conectado", text_color="green")
                     self.nav_buttons["pages"].configure(state="normal")
+                    self.nav_buttons["send_pages"].configure(state="normal")  # 🆕 Habilitar botão Enviar Páginas
                     self.test_btn.configure(state="normal")
                     self.logout_btn.configure(state="normal")
                     self.navigate_to("pages")
@@ -2545,14 +2724,40 @@ Cache salvo em: config/pages_cache.json
                         verify_ssl=verify_ssl
                     )
                     
-                    # Testar conexão obtendo informações básicas
-                    books = client.get_books(limit=1)  # Corrigido: usar 'limit' ao invés de 'count'
+                    # Testar conexão usando o método test_connection
+                    result = client.test_connection()
                     
-                    # Sucesso
-                    self.root.after(0, lambda: self.bookstack_status_label.configure(
-                        text="✅ Conexão bem-sucedida!", text_color="green"))
-                    self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
-                    self.root.after(0, lambda: self.log_message("✅ Teste de conexão BookStack: SUCESSO"))
+                    if result.get('success'):
+                        # Sucesso
+                        user_info = result.get('user_info', {})
+                        user_name = user_info.get('name', 'Usuário')
+                        
+                        self.root.after(0, lambda: self.bookstack_status_label.configure(
+                            text=f"✅ Conectado como: {user_name}", text_color="green"))
+                        self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
+                        self.root.after(0, lambda: self.log_message("✅ Teste de conexão BookStack: SUCESSO"))
+                        self.root.after(0, lambda: self.log_message(f"   Usuário: {user_name}"))
+                        
+                    else:
+                        # Falha - usar mensagem detalhada
+                        error_msg = result.get('message', 'Erro desconhecido')
+                        solution = result.get('solution', '')
+                        
+                        self.root.after(0, lambda: self.bookstack_status_label.configure(
+                            text=f"❌ {error_msg[:30]}...", text_color="red"))
+                        self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
+                        self.root.after(0, lambda: self.log_message(f"❌ Teste BookStack FALHOU"))
+                        self.root.after(0, lambda: self.log_message(f"   {error_msg}"))
+                        
+                        if solution:
+                            # Exibir solução no log
+                            for line in solution.split('\n'):
+                                if line.strip():
+                                    self.root.after(0, lambda l=line: self.log_message(f"   {l}"))
+                        
+                        # Se é erro de permissão de API, exibir popup com instruções
+                        if "USUÁRIO SEM PERMISSÃO DE API" in error_msg:
+                            self.root.after(0, lambda: self.show_api_permission_popup(solution))
                     
                 except Exception as e:
                     error_msg = str(e)
@@ -2628,6 +2833,638 @@ Cache salvo em: config/pages_cache.json
             return 500
         except:
             return 500
+
+    # ========================================
+    # 🆕 FUNÇÕES DA FUNCIONALIDADE ENVIAR PÁGINAS
+    # ========================================
+    
+    def load_send_pages_data(self):
+        """Carrega a lista de páginas em cache para envio"""
+        try:
+            # Carregar páginas do cache
+            cached_pages = self.pages_cache.get_all_pages()
+            
+            # Limpar lista atual
+            for widget in self.send_pages_list_frame.winfo_children():
+                widget.destroy()
+            self.send_pages_checkboxes = []
+            
+            if not cached_pages:
+                no_pages_label = ctk.CTkLabel(
+                    self.send_pages_list_frame, 
+                    text="Nenhuma página em cache.\nUse a aba 'Páginas' para extrair conteúdo primeiro.",
+                    font=ctk.CTkFont(size=12),
+                    text_color="gray"
+                )
+                no_pages_label.pack(pady=20)
+                return
+            
+            # Criar checkboxes para cada página
+            for page in cached_pages[:500]:  # Limitar exibição
+                self.create_send_page_checkbox(page)
+            
+            # Carregar estrutura do BookStack
+            self.load_bookstack_structure()
+            
+        except Exception as e:
+            self.log_message(f"Erro ao carregar páginas para envio: {e}")
+    
+    def create_send_page_checkbox(self, page):
+        """Cria um checkbox para uma página"""
+        page_frame = ctk.CTkFrame(self.send_pages_list_frame)
+        page_frame.pack(fill="x", padx=5, pady=2)
+        
+        # Determinar cor baseado no status
+        status = page.get('status', 1)
+        if status == 2:
+            # Página já enviada ao BookStack
+            title_color = "#4CAF50"  # Verde
+            status_text = "✅"
+        else:
+            # Página apenas em cache
+            title_color = "#2196F3"  # Azul
+            status_text = "💾"
+        
+        # Checkbox
+        var = ctk.BooleanVar()
+        checkbox = ctk.CTkCheckBox(
+            page_frame, 
+            text="",
+            variable=var,
+            width=20
+        )
+        checkbox.pack(side="left", padx=(10, 5), pady=8)
+        
+        # Status visual
+        status_label = ctk.CTkLabel(
+            page_frame, 
+            text=status_text,
+            font=ctk.CTkFont(size=12),
+            width=25
+        )
+        status_label.pack(side="left", padx=(0, 5))
+        
+        # Título da página
+        title_label = ctk.CTkLabel(
+            page_frame, 
+            text=page['title'][:80] + "..." if len(page['title']) > 80 else page['title'],
+            font=ctk.CTkFont(size=11),
+            text_color=title_color,
+            anchor="w"
+        )
+        title_label.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        # Armazenar dados
+        checkbox.page_data = page
+        checkbox.var = var
+        checkbox.status = status
+        self.send_pages_checkboxes.append(checkbox)
+    
+    def filter_send_pages(self, filter_value):
+        """Filtra páginas por status"""
+        search_text = self.send_pages_search_var.get().lower()
+        
+        for checkbox in self.send_pages_checkboxes:
+            page = checkbox.page_data
+            status = checkbox.status
+            title = page['title'].lower()
+            
+            # Filtro por status
+            show_by_status = True
+            if filter_value == "Apenas em Cache (azul)" and status != 1:
+                show_by_status = False
+            elif filter_value == "Enviadas (verde)" and status != 2:
+                show_by_status = False
+            
+            # Filtro por busca
+            show_by_search = search_text in title if search_text else True
+            
+            # Mostrar/esconder
+            if show_by_status and show_by_search:
+                checkbox.master.pack(fill="x", padx=5, pady=2)
+            else:
+                checkbox.master.pack_forget()
+    
+    def on_send_pages_search(self, event=None):
+        """Filtro de busca em tempo real"""
+        filter_value = self.send_pages_status_filter.get()
+        self.filter_send_pages(filter_value)
+    
+    def select_all_send_pages(self):
+        """Seleciona todas as páginas visíveis"""
+        for checkbox in self.send_pages_checkboxes:
+            if checkbox.master.winfo_viewable():
+                checkbox.var.set(True)
+    
+    def deselect_all_send_pages(self):
+        """Deseleciona todas as páginas"""
+        for checkbox in self.send_pages_checkboxes:
+            checkbox.var.set(False)
+    
+    def load_bookstack_structure(self):
+        """Carrega a estrutura do BookStack"""
+        try:
+            # Verificar se BookStack está configurado
+            config = self.config_manager.load_config()
+            if not all([
+                config.get('bookstack_url'),
+                config.get('bookstack_token_id'),
+                config.get('bookstack_token_secret')
+            ]):
+                self.bookstack_connection_status.configure(
+                    text="❌ BookStack não configurado", 
+                    text_color="red"
+                )
+                return
+            
+            # Conectar ao BookStack
+            from src.bookstack_client import BookStackClient
+            
+            self.bookstack_client = BookStackClient(
+                base_url=config['bookstack_url'],
+                token_id=config['bookstack_token_id'],
+                token_secret=config['bookstack_token_secret'],
+                verify_ssl=config.get('bookstack_verify_ssl', True)
+            )
+            
+            # Testar conexão
+            books = self.bookstack_client.get_books(limit=1)
+            
+            self.bookstack_connection_status.configure(
+                text="✅ Conectado ao BookStack", 
+                text_color="green"
+            )
+            
+            # Carregar estantes (simulado - BookStack pode não ter estantes)
+            self.load_bookstack_shelves()
+            
+        except Exception as e:
+            self.bookstack_connection_status.configure(
+                text=f"❌ Erro: {str(e)[:30]}...", 
+                text_color="red"
+            )
+            self.log_message(f"Erro ao conectar BookStack: {e}")
+    
+    def load_bookstack_shelves(self):
+        """Carrega as estantes do BookStack"""
+        try:
+            # Limpar navegação atual
+            for widget in self.bookstack_nav_frame.winfo_children():
+                widget.destroy()
+            
+            # BookStack pode não ter shelves, então vamos direto para books
+            self.load_bookstack_books()
+            
+        except Exception as e:
+            self.log_message(f"Erro ao carregar estantes: {e}")
+    
+    def load_bookstack_books(self):
+        """Carrega os livros do BookStack"""
+        try:
+            # Atualizar breadcrumb
+            self.breadcrumb_label.configure(text="📚 Livros Disponíveis")
+            self.current_bookstack_level = "books"
+            
+            # Carregar livros
+            books = self.bookstack_client.get_books()
+            
+            if not books:
+                no_books_label = ctk.CTkLabel(
+                    self.bookstack_nav_frame, 
+                    text="Nenhum livro encontrado",
+                    text_color="gray"
+                )
+                no_books_label.pack(pady=10)
+                return
+            
+            # Criar botões para cada livro
+            for book in books:
+                book_btn = ctk.CTkButton(
+                    self.bookstack_nav_frame,
+                    text=f"📖 {book['name']}",
+                    command=lambda b=book: self.select_book(b),
+                    anchor="w",
+                    height=35
+                )
+                book_btn.pack(fill="x", padx=5, pady=2)
+                
+        except Exception as e:
+            error_label = ctk.CTkLabel(
+                self.bookstack_nav_frame, 
+                text=f"Erro ao carregar livros: {str(e)[:50]}...",
+                text_color="red",
+                wraplength=350
+            )
+            error_label.pack(pady=10)
+            self.log_message(f"Erro ao carregar livros: {e}")
+    
+    def select_book(self, book):
+        """Seleciona um livro e carrega seus capítulos"""
+        try:
+            self.current_book_id = book['id']
+            self.breadcrumb_label.configure(text=f"📖 {book['name']} > Capítulos")
+            
+            # Limpar navegação
+            for widget in self.bookstack_nav_frame.winfo_children():
+                widget.destroy()
+            
+            # Botão voltar
+            back_btn = ctk.CTkButton(
+                self.bookstack_nav_frame,
+                text="⬅️ Voltar para Livros",
+                command=self.load_bookstack_books,
+                fg_color="gray",
+                height=30
+            )
+            back_btn.pack(fill="x", padx=5, pady=(0, 10))
+            
+            # Opção: Enviar para o livro diretamente
+            direct_book_btn = ctk.CTkButton(
+                self.bookstack_nav_frame,
+                text=f"📖 Enviar para '{book['name']}' (como novas páginas)",
+                command=lambda: self.set_target_book(book),
+                fg_color="#2E8B57",
+                hover_color="#228B22",
+                height=40
+            )
+            direct_book_btn.pack(fill="x", padx=5, pady=(0, 10))
+            
+            # Carregar capítulos
+            chapters = self.bookstack_client.get_chapters(book_id=book['id'])
+            
+            if chapters:
+                chapters_label = ctk.CTkLabel(
+                    self.bookstack_nav_frame, 
+                    text="Capítulos:",
+                    font=ctk.CTkFont(weight="bold")
+                )
+                chapters_label.pack(pady=(10, 5))
+                
+                for chapter in chapters:
+                    chapter_btn = ctk.CTkButton(
+                        self.bookstack_nav_frame,
+                        text=f"📑 {chapter['name']}",
+                        command=lambda c=chapter: self.select_chapter(c),
+                        anchor="w",
+                        height=35
+                    )
+                    chapter_btn.pack(fill="x", padx=5, pady=2)
+            else:
+                no_chapters_label = ctk.CTkLabel(
+                    self.bookstack_nav_frame, 
+                    text="Nenhum capítulo neste livro",
+                    text_color="gray"
+                )
+                no_chapters_label.pack(pady=10)
+                
+        except Exception as e:
+            self.log_message(f"Erro ao selecionar livro: {e}")
+    
+    def select_chapter(self, chapter):
+        """Seleciona um capítulo e carrega suas páginas"""
+        try:
+            self.current_chapter_id = chapter['id']
+            book_name = "Livro Selecionado"  # Simplified for now
+            
+            self.breadcrumb_label.configure(text=f"📑 {chapter['name']} > Páginas")
+            
+            # Limpar navegação
+            for widget in self.bookstack_nav_frame.winfo_children():
+                widget.destroy()
+            
+            # Botão voltar
+            back_btn = ctk.CTkButton(
+                self.bookstack_nav_frame,
+                text="⬅️ Voltar para Capítulos",
+                command=lambda: self.select_book({'id': self.current_book_id, 'name': book_name}),
+                fg_color="gray",
+                height=30
+            )
+            back_btn.pack(fill="x", padx=5, pady=(0, 10))
+            
+            # Opção: Enviar para o capítulo
+            direct_chapter_btn = ctk.CTkButton(
+                self.bookstack_nav_frame,
+                text=f"📑 Enviar para '{chapter['name']}' (como novas páginas)",
+                command=lambda: self.set_target_chapter(chapter),
+                fg_color="#2E8B57",
+                hover_color="#228B22",
+                height=40
+            )
+            direct_chapter_btn.pack(fill="x", padx=5, pady=(0, 10))
+            
+            # Carregar páginas do capítulo
+            pages = self.bookstack_client.get_pages(chapter_id=chapter['id'])
+            
+            if pages:
+                pages_label = ctk.CTkLabel(
+                    self.bookstack_nav_frame, 
+                    text="Páginas existentes:",
+                    font=ctk.CTkFont(weight="bold")
+                )
+                pages_label.pack(pady=(10, 5))
+                
+                for page in pages[:10]:  # Limitar a 10 páginas
+                    page_btn = ctk.CTkButton(
+                        self.bookstack_nav_frame,
+                        text=f"📄 {page['name']}",
+                        command=lambda p=page: self.set_target_page(p),
+                        anchor="w",
+                        height=30,
+                        fg_color="#FF9800",
+                        hover_color="#F57C00"
+                    )
+                    page_btn.pack(fill="x", padx=5, pady=1)
+            else:
+                no_pages_label = ctk.CTkLabel(
+                    self.bookstack_nav_frame, 
+                    text="Nenhuma página neste capítulo",
+                    text_color="gray"
+                )
+                no_pages_label.pack(pady=10)
+                
+        except Exception as e:
+            self.log_message(f"Erro ao selecionar capítulo: {e}")
+    
+    def set_target_book(self, book):
+        """Define livro como destino"""
+        self.selected_target = {
+            'type': 'book',
+            'id': book['id'],
+            'name': book['name']
+        }
+        self.update_selection_info()
+    
+    def set_target_chapter(self, chapter):
+        """Define capítulo como destino"""
+        self.selected_target = {
+            'type': 'chapter',
+            'id': chapter['id'],
+            'name': chapter['name']
+        }
+        self.update_selection_info()
+    
+    def set_target_page(self, page):
+        """Define página como destino (substitui o conteúdo)"""
+        self.selected_target = {
+            'type': 'page',
+            'id': page['id'],
+            'name': page['name']
+        }
+        self.update_selection_info()
+    
+    def update_selection_info(self):
+        """Atualiza informações da seleção"""
+        if not hasattr(self, 'send_pages_checkboxes'):
+            return
+            
+        selected_pages = [cb for cb in self.send_pages_checkboxes if cb.var.get()]
+        pages_count = len(selected_pages)
+        
+        if hasattr(self, 'selected_target') and self.selected_target and pages_count > 0:
+            target_type = self.selected_target['type']
+            target_name = self.selected_target['name']
+            
+            if target_type == 'book':
+                info_text = f"📖 {pages_count} página(s) → Livro '{target_name}'"
+            elif target_type == 'chapter':
+                info_text = f"📑 {pages_count} página(s) → Capítulo '{target_name}'"
+            elif target_type == 'page':
+                info_text = f"📄 {pages_count} página(s) → Substituir '{target_name}'"
+                
+            self.selection_info_label.configure(text=info_text)
+            self.send_to_bookstack_btn.configure(state="normal")
+        else:
+            if pages_count == 0:
+                self.selection_info_label.configure(text="Selecione páginas para enviar")
+            elif not hasattr(self, 'selected_target') or not self.selected_target:
+                self.selection_info_label.configure(text="Selecione um destino no BookStack")
+            else:
+                self.selection_info_label.configure(text="Selecione páginas e destino")
+            
+            self.send_to_bookstack_btn.configure(state="disabled")
+    
+    def reload_bookstack_structure(self):
+        """Recarrega a estrutura do BookStack"""
+        self.load_bookstack_structure()
+    
+    def send_selected_pages_to_bookstack(self):
+        """Envia as páginas selecionadas para o BookStack"""
+        if not self.selected_target:
+            self.log_message("Erro: Nenhum destino selecionado")
+            return
+        
+        selected_pages = [cb.page_data for cb in self.send_pages_checkboxes if cb.var.get()]
+        if not selected_pages:
+            self.log_message("Erro: Nenhuma página selecionada")
+            return
+        
+        self.send_to_bookstack_btn.configure(state="disabled", text="📤 Enviando...")
+        
+        # Executar em thread separada
+        threading.Thread(
+            target=self._send_pages_worker,
+            args=(selected_pages, self.selected_target),
+            daemon=True
+        ).start()
+    
+    def _send_pages_worker(self, pages, target):
+        """Worker thread para enviar páginas"""
+        try:
+            total_pages = len(pages)
+            successful = 0
+            failed = 0
+            
+            self.log_message(f"Iniciando envio de {total_pages} páginas para BookStack...")
+            
+            for i, page in enumerate(pages):
+                try:
+                    # Atualizar progresso
+                    progress = (i + 1) / total_pages
+                    self.root.after(0, lambda p=progress: self.update_send_progress(p, i + 1, total_pages))
+                    
+                    # Obter conteúdo da página
+                    content = self.get_page_content_for_bookstack(page)
+                    
+                    if content:
+                        # Enviar para BookStack
+                        if target['type'] == 'book':
+                            result = self.bookstack_client.create_page({
+                                'name': page['title'],
+                                'html': content,
+                                'book_id': target['id']
+                            })
+                        elif target['type'] == 'chapter':
+                            result = self.bookstack_client.create_page({
+                                'name': page['title'],
+                                'html': content,
+                                'chapter_id': target['id']
+                            })
+                        elif target['type'] == 'page':
+                            result = self.bookstack_client.update_page(target['id'], {
+                                'name': page['title'],
+                                'html': content
+                            })
+                        
+                        if result:
+                            successful += 1
+                            # Atualizar status da página no cache
+                            self.pages_cache.update_page_status(page['pageid'], 2)
+                            self.log_message(f"✅ Página '{page['title']}' enviada com sucesso")
+                        else:
+                            failed += 1
+                            self.log_message(f"❌ Falha ao enviar '{page['title']}'")
+                    else:
+                        failed += 1
+                        self.log_message(f"❌ Conteúdo não encontrado para '{page['title']}'")
+                        
+                except Exception as e:
+                    failed += 1
+                    self.log_message(f"❌ Erro ao enviar '{page['title']}': {e}")
+            
+            # Finalizar
+            self.root.after(0, lambda: self.finish_send_operation(successful, failed, total_pages))
+            
+        except Exception as e:
+            self.root.after(0, lambda: self.log_message(f"Erro geral no envio: {e}"))
+            self.root.after(0, lambda: self.send_to_bookstack_btn.configure(state="normal", text="📤 Enviar para BookStack"))
+    
+    def get_page_content_for_bookstack(self, page):
+        """Obtém o conteúdo de uma página para envio ao BookStack"""
+        try:
+            # Tentar obter conteúdo do cache primeiro
+            cached_content = self.pages_cache.get_page_content(page['pageid'])
+            
+            if cached_content:
+                # Converter wikitext para HTML básico
+                html_content = self.convert_wikitext_to_html(cached_content)
+                return html_content
+            else:
+                # Se não há conteúdo em cache, tentar extrair
+                if self.client:
+                    content = self.client.get_page_content(page['title'])
+                    if content:
+                        html_content = self.convert_wikitext_to_html(content)
+                        return html_content
+                
+                return None
+                
+        except Exception as e:
+            self.log_message(f"Erro ao obter conteúdo da página '{page['title']}': {e}")
+            return None
+    
+    def convert_wikitext_to_html(self, wikitext):
+        """Converte wikitext para HTML básico"""
+        try:
+            if not wikitext:
+                return "<p>Conteúdo vazio</p>"
+            
+            # Conversões básicas de wikitext para HTML
+            html = wikitext
+            
+            # Cabeçalhos
+            html = re.sub(r'^=====(.+?)=====', r'<h5>\1</h5>', html, flags=re.MULTILINE)
+            html = re.sub(r'^====(.+?)====', r'<h4>\1</h4>', html, flags=re.MULTILINE)
+            html = re.sub(r'^===(.+?)===', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+            html = re.sub(r'^==(.+?)==', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+            
+            # Negrito e itálico
+            html = re.sub(r"'''(.+?)'''", r'<strong>\1</strong>', html)
+            html = re.sub(r"''(.+?)''", r'<em>\1</em>', html)
+            
+            # Links internos
+            html = re.sub(r'\[\[([^|]+)\|([^]]+)\]\]', r'<a href="#\1">\2</a>', html)
+            html = re.sub(r'\[\[([^]]+)\]\]', r'<a href="#\1">\1</a>', html)
+            
+            # Links externos
+            html = re.sub(r'\[([^ ]+) ([^\]]+)\]', r'<a href="\1">\2</a>', html)
+            
+            # Listas
+            lines = html.split('\n')
+            in_list = False
+            html_lines = []
+            
+            for line in lines:
+                if line.startswith('* '):
+                    if not in_list:
+                        html_lines.append('<ul>')
+                        in_list = True
+                    html_lines.append(f'<li>{line[2:]}</li>')
+                elif line.startswith('# '):
+                    if not in_list:
+                        html_lines.append('<ol>')
+                        in_list = True
+                    html_lines.append(f'<li>{line[2:]}</li>')
+                else:
+                    if in_list:
+                        html_lines.append('</ul>')
+                        in_list = False
+                    if line.strip():
+                        html_lines.append(f'<p>{line}</p>')
+                    else:
+                        html_lines.append('<br>')
+            
+            if in_list:
+                html_lines.append('</ul>')
+            
+            html = '\n'.join(html_lines)
+            
+            # Adicionar metadados
+            timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
+            html += f'\n\n<hr><p><small>Importado do MediaWiki em {timestamp}</small></p>'
+            
+            return html
+            
+        except Exception as e:
+            self.log_message(f"Erro na conversão wikitext->HTML: {e}")
+            return f"<p>Erro na conversão do conteúdo</p><pre>{wikitext}</pre>"
+    
+    def update_send_progress(self, progress, current, total):
+        """Atualiza progresso do envio"""
+        percentage = int(progress * 100)
+        self.send_to_bookstack_btn.configure(text=f"📤 Enviando... {current}/{total} ({percentage}%)")
+    
+    def finish_send_operation(self, successful, failed, total):
+        """Finaliza a operação de envio"""
+        self.send_to_bookstack_btn.configure(state="normal", text="📤 Enviar para BookStack")
+        
+        if successful > 0:
+            self.log_message(f"✅ Envio concluído: {successful}/{total} páginas enviadas com sucesso")
+            
+            # Recarregar lista para mostrar páginas atualizadas
+            self.load_send_pages_data()
+            
+            # Resetar seleção
+            self.selected_target = None
+            self.update_selection_info()
+            
+        if failed > 0:
+            self.log_message(f"❌ {failed} páginas falharam no envio")
+    
+    def show_api_permission_popup(self, solution_text):
+        """Exibe popup com instruções para corrigir permissão de API"""
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            # Popup com instruções detalhadas
+            messagebox.showwarning(
+                "Erro de Permissão de API - BookStack",
+                f"❌ USUÁRIO SEM PERMISSÃO DE API\n\n"
+                f"O usuário associado ao token não pode usar a API do BookStack.\n\n"
+                f"COMO CORRIGIR:\n"
+                f"1. Acesse seu BookStack como administrador\n"
+                f"2. Vá em: Configurações > Usuários > [Usuário do Token]\n"
+                f"3. Clique em 'Editar' no usuário\n"
+                f"4. Na seção 'Roles', adicione uma role que tenha 'API Access'\n"
+                f"5. Salve as alterações\n\n"
+                f"ALTERNATIVA:\n"
+                f"• Use um token de usuário administrador\n"
+                f"• Ou crie uma role personalizada com permissão 'API Access'"
+            )
+            
+        except Exception as e:
+            self.log_message(f"Erro ao exibir popup: {e}")
 
     def run(self):
         self.root.mainloop()
