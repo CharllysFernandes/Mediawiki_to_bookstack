@@ -2225,7 +2225,7 @@ Cache salvo em: config/pages_cache.json
         # Criar nova janela de configurações
         self.config_window = ctk.CTkToplevel(self.root)
         self.config_window.title("Configurações Avançadas")
-        self.config_window.geometry("500x600")
+        self.config_window.geometry("600x800")  # Aumentei a altura de 600 para 800
         self.config_window.resizable(True, True)
         
         # Centralizar janela
@@ -2237,17 +2237,17 @@ Cache salvo em: config/pages_cache.json
         
     def create_config_window_content(self):
         """Cria o conteúdo da janela de configurações"""
-        # Frame principal
-        main_frame = ctk.CTkFrame(self.config_window)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Frame scrollable principal
+        scrollable_frame = ctk.CTkScrollableFrame(self.config_window)
+        scrollable_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Título
-        title_label = ctk.CTkLabel(main_frame, text="Configurações Avançadas", 
+        title_label = ctk.CTkLabel(scrollable_frame, text="Configurações Avançadas", 
                                   font=ctk.CTkFont(size=18, weight="bold"))
         title_label.pack(pady=(0, 20))
         
         # Seção de Conexão
-        connection_frame = ctk.CTkFrame(main_frame)
+        connection_frame = ctk.CTkFrame(scrollable_frame)
         connection_frame.pack(fill="x", padx=10, pady=(0, 15))
         
         ctk.CTkLabel(connection_frame, text="🔗 Configurações de Conexão", 
@@ -2272,7 +2272,7 @@ Cache salvo em: config/pages_cache.json
         self.retry_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Seção de Extração
-        extraction_frame = ctk.CTkFrame(main_frame)
+        extraction_frame = ctk.CTkFrame(scrollable_frame)
         extraction_frame.pack(fill="x", padx=10, pady=(0, 15))
         
         ctk.CTkLabel(extraction_frame, text="📄 Configurações de Extração", 
@@ -2322,7 +2322,7 @@ Cache salvo em: config/pages_cache.json
         self.verbose_logging_checkbox.pack(anchor="w", padx=10, pady=(0, 10))
         
         # Seção de Cache
-        cache_frame = ctk.CTkFrame(main_frame)
+        cache_frame = ctk.CTkFrame(scrollable_frame)
         cache_frame.pack(fill="x", padx=10, pady=(0, 15))
         
         ctk.CTkLabel(cache_frame, text="💾 Configurações de Cache", 
@@ -2342,8 +2342,77 @@ Cache salvo em: config/pages_cache.json
                                                      variable=self.backup_cache_var)
         self.backup_cache_checkbox.pack(anchor="w", padx=15, pady=(0, 15))
         
+        # 🆕 Seção BookStack
+        bookstack_frame = ctk.CTkFrame(scrollable_frame)
+        bookstack_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(bookstack_frame, text="📚 Configurações BookStack", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+        
+        # URL Base do BookStack
+        bookstack_url_frame = ctk.CTkFrame(bookstack_frame)
+        bookstack_url_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(bookstack_url_frame, text="URL Base do BookStack:").pack(anchor="w", padx=10, pady=(10, 0))
+        ctk.CTkLabel(bookstack_url_frame, text="(ex: https://bookstack.empresa.com)", 
+                    font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=10, pady=(0, 5))
+        self.bookstack_url_var = ctk.StringVar(value="")
+        self.bookstack_url_entry = ctk.CTkEntry(bookstack_url_frame, textvariable=self.bookstack_url_var, 
+                                               width=350, placeholder_text="https://bookstack.empresa.com")
+        self.bookstack_url_entry.pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Token ID
+        bookstack_token_id_frame = ctk.CTkFrame(bookstack_frame)
+        bookstack_token_id_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(bookstack_token_id_frame, text="Token ID da API:").pack(anchor="w", padx=10, pady=(10, 0))
+        ctk.CTkLabel(bookstack_token_id_frame, text="(obtenha em: Configurações > API Tokens)", 
+                    font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=10, pady=(0, 5))
+        self.bookstack_token_id_var = ctk.StringVar(value="")
+        self.bookstack_token_id_entry = ctk.CTkEntry(bookstack_token_id_frame, textvariable=self.bookstack_token_id_var, 
+                                                    width=350, placeholder_text="Digite o Token ID")
+        self.bookstack_token_id_entry.pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Token Secret
+        bookstack_token_secret_frame = ctk.CTkFrame(bookstack_frame)
+        bookstack_token_secret_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkLabel(bookstack_token_secret_frame, text="Token Secret da API:").pack(anchor="w", padx=10, pady=(10, 0))
+        self.bookstack_token_secret_var = ctk.StringVar(value="")
+        self.bookstack_token_secret_entry = ctk.CTkEntry(bookstack_token_secret_frame, 
+                                                        textvariable=self.bookstack_token_secret_var,
+                                                        width=350, show="*", 
+                                                        placeholder_text="Digite o Token Secret")
+        self.bookstack_token_secret_entry.pack(anchor="w", padx=10, pady=(0, 10))
+        
+        # Opções BookStack
+        bookstack_options_frame = ctk.CTkFrame(bookstack_frame)
+        bookstack_options_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        # Verificar SSL do BookStack
+        self.bookstack_verify_ssl_var = ctk.BooleanVar(value=True)
+        self.bookstack_verify_ssl_checkbox = ctk.CTkCheckBox(bookstack_options_frame, 
+                                                            text="Verificar certificados SSL do BookStack", 
+                                                            variable=self.bookstack_verify_ssl_var)
+        self.bookstack_verify_ssl_checkbox.pack(anchor="w", padx=10, pady=(10, 5))
+        
+        # Botão Testar Conexão BookStack
+        bookstack_test_frame = ctk.CTkFrame(bookstack_frame)
+        bookstack_test_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        self.test_bookstack_btn = ctk.CTkButton(bookstack_test_frame, 
+                                               text="🔗 Testar Conexão BookStack", 
+                                               command=self.test_bookstack_connection,
+                                               fg_color="#2E8B57", hover_color="#228B22")
+        self.test_bookstack_btn.pack(padx=10, pady=10)
+        
+        # Status da conexão BookStack
+        self.bookstack_status_label = ctk.CTkLabel(bookstack_test_frame, text="", 
+                                                  font=ctk.CTkFont(size=11))
+        self.bookstack_status_label.pack(padx=10, pady=(0, 10))
+        
         # Seção de Interface
-        ui_frame = ctk.CTkFrame(main_frame)
+        ui_frame = ctk.CTkFrame(scrollable_frame)
         ui_frame.pack(fill="x", padx=10, pady=(0, 15))
         
         ctk.CTkLabel(ui_frame, text="🎨 Configurações de Interface", 
@@ -2369,7 +2438,7 @@ Cache salvo em: config/pages_cache.json
         self.max_display_pages_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Botões da janela
-        buttons_frame = ctk.CTkFrame(main_frame)
+        buttons_frame = ctk.CTkFrame(scrollable_frame)
         buttons_frame.pack(fill="x", padx=10, pady=(10, 0))
         
         # Botão Restaurar Padrões
@@ -2413,7 +2482,13 @@ Cache salvo em: config/pages_cache.json
                 'auto_save_cache': self.auto_save_cache_var.get(),
                 'backup_cache': self.backup_cache_var.get(),
                 'theme': self.theme_var.get(),
-                'max_display_pages': int(self.max_display_pages_var.get())
+                'max_display_pages': int(self.max_display_pages_var.get()),
+                
+                # BookStack configurações
+                'bookstack_url': self.bookstack_url_var.get().strip(),
+                'bookstack_token_id': self.bookstack_token_id_var.get().strip(),
+                'bookstack_token_secret': self.bookstack_token_secret_var.get().strip(),
+                'bookstack_verify_ssl': self.bookstack_verify_ssl_var.get()
             }
             
             # Mesclar com configurações existentes
@@ -2430,6 +2505,72 @@ Cache salvo em: config/pages_cache.json
             self.log_message(f"ERRO: Valores inválidos nas configurações: {e}")
         except Exception as e:
             self.log_message(f"ERRO ao salvar configurações avançadas: {e}")
+            
+    def test_bookstack_connection(self):
+        """Testa a conexão com o BookStack"""
+        try:
+            from src.bookstack_client import BookStackClient
+            
+            # Obter valores dos campos
+            base_url = self.bookstack_url_var.get().strip()
+            token_id = self.bookstack_token_id_var.get().strip()
+            token_secret = self.bookstack_token_secret_var.get().strip()
+            verify_ssl = self.bookstack_verify_ssl_var.get()
+            
+            # Validar campos obrigatórios
+            if not base_url:
+                self.bookstack_status_label.configure(text="❌ URL Base é obrigatória", text_color="red")
+                return
+                
+            if not token_id:
+                self.bookstack_status_label.configure(text="❌ Token ID é obrigatório", text_color="red")
+                return
+                
+            if not token_secret:
+                self.bookstack_status_label.configure(text="❌ Token Secret é obrigatório", text_color="red")
+                return
+            
+            # Atualizar status
+            self.bookstack_status_label.configure(text="🔄 Testando conexão...", text_color="orange")
+            self.test_bookstack_btn.configure(state="disabled")
+            
+            # Teste em thread separada para não travar a interface
+            def test_connection():
+                try:
+                    # Criar cliente BookStack
+                    client = BookStackClient(
+                        base_url=base_url,
+                        token_id=token_id,
+                        token_secret=token_secret,
+                        verify_ssl=verify_ssl
+                    )
+                    
+                    # Testar conexão obtendo informações básicas
+                    books = client.get_books(limit=1)  # Corrigido: usar 'limit' ao invés de 'count'
+                    
+                    # Sucesso
+                    self.root.after(0, lambda: self.bookstack_status_label.configure(
+                        text="✅ Conexão bem-sucedida!", text_color="green"))
+                    self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
+                    self.root.after(0, lambda: self.log_message("✅ Teste de conexão BookStack: SUCESSO"))
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    self.root.after(0, lambda: self.bookstack_status_label.configure(
+                        text=f"❌ Erro: {error_msg[:50]}...", text_color="red"))
+                    self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
+                    self.root.after(0, lambda: self.log_message(f"❌ Teste de conexão BookStack FALHOU: {error_msg}"))
+            
+            # Executar teste em thread separada
+            threading.Thread(target=test_connection, daemon=True).start()
+            
+        except ImportError:
+            self.bookstack_status_label.configure(text="❌ Erro: módulo BookStack não encontrado", text_color="red")
+            self.log_message("❌ ERRO: Módulo BookStackClient não encontrado")
+        except Exception as e:
+            self.bookstack_status_label.configure(text=f"❌ Erro: {str(e)[:30]}...", text_color="red")
+            self.log_message(f"❌ ERRO no teste BookStack: {e}")
+            self.test_bookstack_btn.configure(state="normal")
             
     def load_advanced_config(self):
         """Carrega as configurações avançadas salvas"""
@@ -2449,6 +2590,12 @@ Cache salvo em: config/pages_cache.json
                 self.backup_cache_var.set(config_data.get('backup_cache', False))
                 self.theme_var.set(config_data.get('theme', 'dark'))
                 self.max_display_pages_var.set(str(config_data.get('max_display_pages', 500)))
+                
+                # BookStack configurações
+                self.bookstack_url_var.set(config_data.get('bookstack_url', ''))
+                self.bookstack_token_id_var.set(config_data.get('bookstack_token_id', ''))
+                self.bookstack_token_secret_var.set(config_data.get('bookstack_token_secret', ''))
+                self.bookstack_verify_ssl_var.set(config_data.get('bookstack_verify_ssl', True))
                 
         except Exception as e:
             self.log_message(f"ERRO ao carregar configurações avançadas: {e}")

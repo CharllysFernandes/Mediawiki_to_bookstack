@@ -15,7 +15,12 @@ class ConfigManager:
             default_config = {
                 'verify_ssl': False,  # Padrão desabilitado para evitar problemas
                 'timeout': 30,
-                'user_agent': 'MediaWiki-to-BookStack/1.0'
+                'user_agent': 'MediaWiki-to-BookStack/1.0',
+                # Configurações BookStack
+                'bookstack_url': '',
+                'bookstack_token_id': '',
+                'bookstack_token_secret': '',
+                'bookstack_verify_ssl': True
             }
             
             # Mesclar com configurações existentes
@@ -40,7 +45,12 @@ class ConfigManager:
             default_values = {
                 'verify_ssl': False,
                 'timeout': 30,
-                'user_agent': 'MediaWiki-to-BookStack/1.0'
+                'user_agent': 'MediaWiki-to-BookStack/1.0',
+                # Configurações BookStack
+                'bookstack_url': '',
+                'bookstack_token_id': '',
+                'bookstack_token_secret': '',
+                'bookstack_verify_ssl': True
             }
             
             for key, value in default_values.items():
