@@ -2730,13 +2730,60 @@ Cache salvo em: config/pages_cache.json
                     if result.get('success'):
                         # Sucesso
                         user_info = result.get('user_info', {})
-                        user_name = user_info.get('name', 'Usuário')
+                        user_name = user_info.get('name', 'Usuário não identificado')
+                        user_note = user_info.get('note', '')
+                        create_perms = result.get('create_permissions', {})
                         
+                        # Tentar usar o nome do usuário MediaWiki se BookStack não fornecer um nome específico
+                        if user_name in ['Usuário não identificado', 'Usuário do Token de API', 'Usuário (informações limitadas)']:
+                            # Obter nome do usuário logado no MediaWiki se disponível
+                            try:
+                                if hasattr(self, 'mediawiki_client') and self.mediawiki_client:
+                                    mediawiki_username = getattr(self.mediawiki_client, 'username', None)
+                                    if mediawiki_username:
+                                        user_name = f"{mediawiki_username} (via MediaWiki)"
+                                        user_note = f"Nome obtido do MediaWiki. {user_note}".strip()
+                            except:
+                                pass  # Se falhar, manter o nome original
+                        
+                        # Determinar cor do status baseado nas permissões
+                        if create_perms.get('can_create', False):
+                            status_color = "green"
+                            status_icon = "✅"
+                        else:
+                            status_color = "orange"
+                            status_icon = "⚠️"
+                        
+                        # Exibir nome do usuário no status
                         self.root.after(0, lambda: self.bookstack_status_label.configure(
-                            text=f"✅ Conectado como: {user_name}", text_color="green"))
+                            text=f"{status_icon} Conectado como: {user_name}", text_color=status_color))
                         self.root.after(0, lambda: self.test_bookstack_btn.configure(state="normal"))
                         self.root.after(0, lambda: self.log_message("✅ Teste de conexão BookStack: SUCESSO"))
-                        self.root.after(0, lambda: self.log_message(f"   Usuário: {user_name}"))
+                        
+                        # Log detalhado das informações do usuário
+                        if user_name != 'Usuário não identificado':
+                            self.root.after(0, lambda: self.log_message(f"   👤 Usuário: {user_name}"))
+                        
+                        # Mostrar informações adicionais se disponíveis
+                        if user_note:
+                            self.root.after(0, lambda: self.log_message(f"   ℹ️ Info: {user_note}"))
+                        
+                        if 'id' in user_info:
+                            self.root.after(0, lambda: self.log_message(f"   🆔 ID: {user_info['id']}"))
+                        
+                        if 'email' in user_info and user_info['email']:
+                            self.root.after(0, lambda: self.log_message(f"   📧 Email: {user_info['email']}"))
+                        
+                        # Mostrar status das permissões de criação
+                        if create_perms:
+                            perm_status = create_perms.get('status', 'Desconhecido')
+                            can_create = create_perms.get('can_create', False)
+                            perm_icon = "✅" if can_create else "❌"
+                            
+                            self.root.after(0, lambda: self.log_message(f"   {perm_icon} Permissões: {perm_status}"))
+                            
+                            if not can_create and 'solution' in create_perms:
+                                self.root.after(0, lambda: self.log_message(f"   💡 Solução necessária para criação de páginas"))
                         
                     else:
                         # Falha - usar mensagem detalhada
@@ -3409,9 +3456,21 @@ Cache salvo em: config/pages_cache.json
             
             html = '\n'.join(html_lines)
             
-            # Adicionar metadados
+            # Adicionar metadatos
             timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
-            html += f'\n\n<hr><p><small>Importado do MediaWiki em {timestamp}</small></p>'
+            metadata_parts = [f'Importado do MediaWiki em {timestamp}']
+            
+            # Adicionar informação do usuário se disponível
+            try:
+                if hasattr(self, 'mediawiki_client') and self.mediawiki_client:
+                    mediawiki_username = getattr(self.mediawiki_client, 'username', None)
+                    if mediawiki_username:
+                        metadata_parts.append(f'Usuário do MediaWiki: {mediawiki_username}')
+            except:
+                pass  # Se falhar, apenas continuar sem adicionar info do usuário
+            
+            metadata_text = ' | '.join(metadata_parts)
+            html += f'\n\n<hr><p><small>{metadata_text}</small></p>'
             
             return html
             
