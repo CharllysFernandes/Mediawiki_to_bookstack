@@ -291,6 +291,18 @@ class MediaWikiApp:
         self.extract_pages_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair Pendentes", command=self.extract_pending_content)
         self.extract_pages_btn.pack(side="left", padx=10, pady=10)
         
+        # Novo botão para extrair em Markdown
+        self.extract_markdown_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair Markdown", 
+                                                command=self.extract_markdown_content, 
+                                                fg_color="#2B5797", hover_color="#1f4788")
+        self.extract_markdown_btn.pack(side="left", padx=10, pady=10)
+        
+        # Novo botão para extrair como TXT
+        self.extract_txt_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair TXT", 
+                                           command=self.extract_txt_content, 
+                                           fg_color="#2B7A2B", hover_color="#1f5f1f")
+        self.extract_txt_btn.pack(side="left", padx=10, pady=10)
+        
         # Adicionar botão para salvar arquivos
         self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Wikitext", 
                                           command=self.save_extracted_files, state="disabled")
@@ -1142,6 +1154,434 @@ Cache salvo em: config/pages_cache.json
             self.root.after(0, lambda: self.extract_pages_btn.configure(state="normal"))
             self.root.after(0, lambda: self.progress_label.configure(text=""))
     
+    def extract_markdown_content(self):
+        """Extrai conteúdo das páginas selecionadas em formato Markdown"""
+        if not self.client or not self.page_checkboxes:
+            self.log_message("ERRO: Carregue as páginas primeiro")
+            self.update_status("Carregue as páginas primeiro", "red")
+            return
+        
+        selected_pages = self.get_selected_pages()
+        if not selected_pages:
+            self.log_message("ERRO: Nenhuma página selecionada")
+            self.update_status("Nenhuma página selecionada", "red")
+            return
+            
+        self.extract_markdown_btn.configure(state="disabled")
+        self.update_status("Extraindo páginas em Markdown...", "yellow")
+        self.content_textbox.delete("1.0", "end")
+        self.progress_bar.set(0)
+        
+        threading.Thread(target=self._extract_markdown_worker, args=(selected_pages,), daemon=True).start()
+    
+    def _extract_markdown_worker(self, selected_pages):
+        """Worker thread para extrair conteúdo em Markdown"""
+        try:
+            page_titles = [page['title'] for page in selected_pages]
+            page_ids = [page['pageid'] for page in selected_pages]
+            total_pages = len(page_titles)
+            processed = 0
+            
+            self.log_message(f"Iniciando extração Markdown de {total_pages} páginas selecionadas...")
+            
+            def progress_callback(current_total, batch_size):
+                nonlocal processed
+                processed = current_total
+                progress = processed / total_pages if total_pages > 0 else 0
+                self.root.after(0, lambda: self.progress_bar.set(progress))
+                self.root.after(0, lambda: self.progress_label.configure(text=f"Extraindo Markdown: {processed}/{total_pages}"))
+            
+            # Extrair conteúdo em formato Markdown
+            expand_templates = self.expand_templates_var.get()
+            contents = self.client.get_page_content_batch(
+                page_titles, 
+                callback=progress_callback, 
+                format_type='markdown',  # Formato Markdown
+                expand_templates=expand_templates
+            )
+            
+            # Processar resultados e atualizar status no cache
+            successful = 0
+            failed = 0
+            processed_ids = []
+            failed_details = []
+            markdown_content = {}
+            
+            for i, (title, content) in enumerate(contents.items()):
+                page_id = page_ids[i] if i < len(page_ids) else None
+                
+                if isinstance(content, dict) and content.get('markdown'):
+                    # Sucesso
+                    successful += 1
+                    markdown_content[title] = content
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 1)  # Marcar como processada
+                        processed_ids.append(page_id)
+                else:
+                    # Falha
+                    failed += 1
+                    error_msg = content if isinstance(content, str) else "Erro desconhecido"
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 0, error_msg)  # Manter pendente com erro
+                    failed_details.append(f"❌ {title}: {error_msg}")
+            
+            # Salvar cache atualizado
+            self.pages_cache.save_cache()
+            
+            # Preparar relatório
+            stats = self.pages_cache.get_statistics()
+            
+            summary = [
+                f"=== EXTRAÇÃO MARKDOWN CONCLUÍDA ===",
+                f"Páginas selecionadas: {total_pages}",
+                f"Extraídas com sucesso: {successful}",
+                f"Falharam: {failed}",
+                f"",
+                f"=== PROGRESSO GERAL ===",
+                f"Total no cache: {stats['total_pages']:,}",
+                f"Processadas: {stats['processed_pages']:,}",
+                f"Pendentes: {stats['pending_pages']:,}",
+                f"Progresso: {stats['progress_percentage']:.1f}%",
+                ""
+            ]
+            
+            # Adicionar detalhes de falhas se houver
+            if failed_details:
+                summary.append("=== PÁGINAS COM ERRO ===")
+                summary.extend(failed_details[:10])  # Mostrar até 10 erros
+                if len(failed_details) > 10:
+                    summary.append(f"... e mais {len(failed_details) - 10} erros")
+                summary.append("")
+            
+            if successful > 0:
+                summary.append("✅ Páginas processadas foram marcadas como concluídas no cache")
+                summary.append(f"📄 {successful} arquivos Markdown prontos para download")
+                
+                # Salvar arquivos Markdown automaticamente
+                self._save_markdown_files(markdown_content)
+            
+            result_text = "\n".join(summary)
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
+            
+            # Status final
+            status_msg = f"Markdown: {successful}/{total_pages} | Cache: {stats['progress_percentage']:.1f}%"
+            status_color = "green" if failed == 0 else "orange"
+            self.root.after(0, lambda: self.update_status(status_msg, status_color))
+            self.root.after(0, lambda: self.progress_bar.set(1.0))
+            
+            # Log
+            self.log_message(f"Extração Markdown completa: {successful}/{total_pages} páginas. Progresso geral: {stats['progress_percentage']:.1f}%")
+            
+            # Atualizar lista de páginas (mostrar páginas pendentes restantes)
+            self.root.after(0, self._create_cached_page_checkboxes)
+            
+        except Exception as e:
+            error_msg = f"ERRO na extração Markdown: {str(e)}"
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
+            self.root.after(0, lambda: self.update_status("Erro na extração Markdown", "red"))
+            self.log_message(error_msg)
+        finally:
+            self.root.after(0, lambda: self.extract_markdown_btn.configure(state="normal"))
+            self.root.after(0, lambda: self.progress_label.configure(text=""))
+    
+    def _save_markdown_files(self, markdown_content):
+        """Salva automaticamente os arquivos Markdown extraídos"""
+        try:
+            # Importar módulos necessários
+            import os
+            from datetime import datetime
+            
+            # Criar diretório para os arquivos
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = f"extracted_markdown_{timestamp}"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            saved_count = 0
+            
+            # Salvar cada página como arquivo Markdown
+            for title, content in markdown_content.items():
+                if isinstance(content, dict) and content.get('markdown'):
+                    # Sanitizar nome do arquivo
+                    filename = self._sanitize_filename(title) + ".md"
+                    filepath = os.path.join(output_dir, filename)
+                    
+                    try:
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            # Escrever cabeçalho
+                            f.write(f"# {title}\n\n")
+                            f.write(f"**Fonte:** MediaWiki  \n")
+                            f.write(f"**Data de extração:** {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}  \n")
+                            f.write(f"**Formato:** Markdown\n\n")
+                            f.write("---\n\n")
+                            
+                            # Escrever conteúdo Markdown
+                            f.write(content['markdown'])
+                            
+                        saved_count += 1
+                        
+                    except Exception as e:
+                        self.log_message(f"ERRO ao salvar {filename}: {str(e)}")
+            
+            # Criar arquivo de índice
+            index_path = os.path.join(output_dir, "README.md")
+            self._create_markdown_index(index_path, markdown_content)
+            
+            self.log_message(f"✅ {saved_count} arquivos Markdown salvos em: {output_dir}")
+            
+        except Exception as e:
+            self.log_message(f"ERRO ao salvar arquivos Markdown: {str(e)}")
+    
+    def _create_markdown_index(self, index_path, content_dict):
+        """Cria arquivo de índice para os arquivos Markdown"""
+        try:
+            from datetime import datetime
+            
+            with open(index_path, 'w', encoding='utf-8') as f:
+                f.write("# 📚 Índice de Páginas Extraídas - Markdown\n\n")
+                f.write(f"**Data de extração:** {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}  \n")
+                f.write(f"**Formato:** Markdown  \n")
+                f.write(f"**Total de páginas:** {len(content_dict)}\n\n")
+                f.write("---\n\n")
+                
+                # Listar páginas com sucesso
+                successful_pages = [(title, content) for title, content in content_dict.items() 
+                                   if isinstance(content, dict) and content.get('markdown')]
+                
+                if successful_pages:
+                    f.write("## ✅ Páginas Extraídas com Sucesso\n\n")
+                    for i, (title, content) in enumerate(successful_pages, 1):
+                        filename = self._sanitize_filename(title) + ".md"
+                        f.write(f"{i}. **[{title}](./{filename})**\n")
+                    f.write("\n")
+                
+                # Listar páginas com erro
+                failed_pages = [(title, content) for title, content in content_dict.items() 
+                               if not (isinstance(content, dict) and content.get('markdown'))]
+                
+                if failed_pages:
+                    f.write("## ❌ Páginas com Erro\n\n")
+                    for i, (title, content) in enumerate(failed_pages, 1):
+                        error_msg = content if isinstance(content, str) else "Erro desconhecido"
+                        f.write(f"{i}. **{title}** - *{error_msg}*\n")
+                    f.write("\n")
+                
+                f.write("---\n\n")
+                f.write("*Gerado automaticamente pelo MediaWiki to BookStack Converter*\n")
+                
+        except Exception as e:
+            self.log_message(f"ERRO ao criar índice Markdown: {str(e)}")
+    
+    def extract_txt_content(self):
+        """Extrai conteúdo das páginas selecionadas e salva como arquivos TXT"""
+        if not self.client or not self.page_checkboxes:
+            self.log_message("ERRO: Carregue as páginas primeiro")
+            self.update_status("Carregue as páginas primeiro", "red")
+            return
+        
+        selected_pages = self.get_selected_pages()
+        if not selected_pages:
+            self.log_message("ERRO: Nenhuma página selecionada")
+            self.update_status("Nenhuma página selecionada", "red")
+            return
+            
+        self.extract_txt_btn.configure(state="disabled")
+        self.update_status("Extraindo páginas como TXT...", "yellow")
+        self.content_textbox.delete("1.0", "end")
+        self.progress_bar.set(0)
+        
+        threading.Thread(target=self._extract_txt_worker, args=(selected_pages,), daemon=True).start()
+    
+    def _extract_txt_worker(self, selected_pages):
+        """Worker thread para extrair conteúdo como TXT"""
+        try:
+            page_titles = [page['title'] for page in selected_pages]
+            page_ids = [page['pageid'] for page in selected_pages]
+            total_pages = len(page_titles)
+            processed = 0
+            
+            self.log_message(f"Iniciando extração TXT de {total_pages} páginas selecionadas...")
+            
+            def progress_callback(current_total, batch_size):
+                nonlocal processed
+                processed = current_total
+                progress = processed / total_pages if total_pages > 0 else 0
+                self.root.after(0, lambda: self.progress_bar.set(progress))
+                self.root.after(0, lambda: self.progress_label.configure(text=f"Extraindo TXT: {processed}/{total_pages}"))
+            
+            # Extrair conteúdo em formato Wikitext (que funciona)
+            expand_templates = self.expand_templates_var.get()
+            contents = self.client.get_page_content_batch(
+                page_titles, 
+                callback=progress_callback, 
+                format_type='wikitext',  # Usar wikitext que sabemos que funciona
+                expand_templates=expand_templates
+            )
+            
+            # Processar resultados e salvar como TXT
+            successful = 0
+            failed = 0
+            txt_content = {}
+            failed_details = []
+            
+            for i, (title, content) in enumerate(contents.items()):
+                page_id = page_ids[i] if i < len(page_ids) else None
+                
+                # Aceitar qualquer conteúdo de texto (seja dict, string, etc.)
+                text_content = ""
+                if isinstance(content, dict):
+                    # Se é dict, pode ter wikitext, markdown, ou outro campo
+                    text_content = content.get('wikitext', '') or content.get('markdown', '') or content.get('content', '') or str(content)
+                elif isinstance(content, str):
+                    # Se é string direta, usar como está
+                    text_content = content
+                else:
+                    # Qualquer outro tipo, converter para string
+                    text_content = str(content)
+                
+                if text_content and text_content.strip():
+                    # Sucesso - qualquer conteúdo não vazio
+                    successful += 1
+                    txt_content[title] = text_content
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 1)  # Marcar como processada
+                else:
+                    # Falha - conteúdo vazio
+                    failed += 1
+                    error_msg = "Conteúdo vazio"
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 0, error_msg)
+                    failed_details.append(f"❌ {title}: {error_msg}")
+            
+            # Salvar cache atualizado
+            self.pages_cache.save_cache()
+            
+            # Salvar arquivos TXT automaticamente
+            if successful > 0:
+                self._save_txt_files(txt_content)
+            
+            # Preparar relatório
+            stats = self.pages_cache.get_statistics()
+            
+            summary = [
+                f"=== EXTRAÇÃO TXT CONCLUÍDA ===",
+                f"Páginas selecionadas: {total_pages}",
+                f"Extraídas com sucesso: {successful}",
+                f"Falharam: {failed}",
+                f"",
+                f"=== PROGRESSO GERAL ===",
+                f"Total no cache: {stats['total_pages']:,}",
+                f"Processadas: {stats['processed_pages']:,}",
+                f"Pendentes: {stats['pending_pages']:,}",
+                f"Progresso: {stats['progress_percentage']:.1f}%",
+                ""
+            ]
+            
+            # Adicionar detalhes de falhas se houver
+            if failed_details:
+                summary.append("=== PÁGINAS COM ERRO ===")
+                summary.extend(failed_details[:10])  # Mostrar até 10 erros
+                if len(failed_details) > 10:
+                    summary.append(f"... e mais {len(failed_details) - 10} erros")
+                summary.append("")
+            
+            if successful > 0:
+                summary.append("✅ Páginas processadas foram marcadas como concluídas no cache")
+                summary.append(f"📄 {successful} arquivos TXT salvos automaticamente")
+            
+            result_text = "\n".join(summary)
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
+            
+            # Status final
+            status_msg = f"TXT: {successful}/{total_pages} | Cache: {stats['progress_percentage']:.1f}%"
+            status_color = "green" if failed == 0 else "orange"
+            self.root.after(0, lambda: self.update_status(status_msg, status_color))
+            self.root.after(0, lambda: self.progress_bar.set(1.0))
+            
+            # Log
+            self.log_message(f"Extração TXT completa: {successful}/{total_pages} páginas. Progresso geral: {stats['progress_percentage']:.1f}%")
+            
+            # Atualizar lista de páginas (mostrar páginas pendentes restantes)
+            self.root.after(0, self._create_cached_page_checkboxes)
+            
+        except Exception as e:
+            error_msg = f"ERRO na extração TXT: {str(e)}"
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
+            self.root.after(0, lambda: self.update_status("Erro na extração TXT", "red"))
+            self.log_message(error_msg)
+        finally:
+            self.root.after(0, lambda: self.extract_txt_btn.configure(state="normal"))
+            self.root.after(0, lambda: self.progress_label.configure(text=""))
+    
+    def _save_txt_files(self, txt_content):
+        """Salva automaticamente os arquivos TXT extraídos"""
+        try:
+            # Criar diretório para os arquivos
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = f"extracted_txt_{timestamp}"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            saved_count = 0
+            
+            # Salvar cada página como arquivo TXT
+            for title, content in txt_content.items():
+                # Sanitizar nome do arquivo
+                filename = self._sanitize_filename(title) + ".txt"
+                filepath = os.path.join(output_dir, filename)
+                
+                try:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        # Escrever cabeçalho
+                        f.write(f"TÍTULO: {title}\n")
+                        f.write(f"FONTE: MediaWiki\n")
+                        f.write(f"DATA: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                        f.write(f"FORMATO: TXT\n")
+                        f.write("=" * 50 + "\n\n")
+                        
+                        # Escrever conteúdo
+                        f.write(content)
+                        
+                    saved_count += 1
+                    
+                except Exception as e:
+                    self.log_message(f"ERRO ao salvar {filename}: {str(e)}")
+            
+            # Criar arquivo de índice
+            index_path = os.path.join(output_dir, "INDICE.txt")
+            self._create_txt_index(index_path, txt_content)
+            
+            self.log_message(f"✅ {saved_count} arquivos TXT salvos em: {output_dir}")
+            
+        except Exception as e:
+            self.log_message(f"ERRO ao salvar arquivos TXT: {str(e)}")
+    
+    def _create_txt_index(self, index_path, content_dict):
+        """Cria arquivo de índice para os arquivos TXT"""
+        try:
+            with open(index_path, 'w', encoding='utf-8') as f:
+                f.write("ÍNDICE DE PÁGINAS EXTRAÍDAS - TXT\n")
+                f.write("=" * 40 + "\n\n")
+                f.write(f"Data de extração: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                f.write(f"Formato: TXT\n")
+                f.write(f"Total de páginas: {len(content_dict)}\n\n")
+                f.write("-" * 40 + "\n\n")
+                
+                # Listar páginas extraídas
+                f.write("PÁGINAS EXTRAÍDAS:\n\n")
+                for i, title in enumerate(content_dict.keys(), 1):
+                    filename = self._sanitize_filename(title) + ".txt"
+                    f.write(f"{i:3d}. {title}\n")
+                    f.write(f"     Arquivo: {filename}\n\n")
+                
+                f.write("-" * 40 + "\n")
+                f.write("Gerado automaticamente pelo MediaWiki to BookStack Converter\n")
+                
+        except Exception as e:
+            self.log_message(f"ERRO ao criar índice TXT: {str(e)}")
+
     def list_all_pages(self):
         """Método legado - redireciona para refresh_pages_from_api"""
         self.log_message("Redirecionando para atualização do cache...")
