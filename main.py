@@ -8,6 +8,7 @@ from src.mediawiki_client import MediaWikiClient
 from src.logger import Logger
 from src.config_manager import ConfigManager
 from src.pages_cache import PagesCache
+from src.image_downloader import MediaWikiImageDownloader
 
 class MediaWikiApp:
     def __init__(self):
@@ -302,6 +303,12 @@ class MediaWikiApp:
                                            command=self.extract_txt_content, 
                                            fg_color="#2B7A2B", hover_color="#1f5f1f")
         self.extract_txt_btn.pack(side="left", padx=10, pady=10)
+        
+        # Novo botão para extrair TXT + Imagens
+        self.extract_txt_images_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair TXT + Imagens", 
+                                                  command=self.extract_txt_with_images, 
+                                                  fg_color="#7A2B7A", hover_color="#5f1f5f")
+        self.extract_txt_images_btn.pack(side="left", padx=10, pady=10)
         
         # Adicionar botão para salvar arquivos
         self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Wikitext", 
@@ -1581,6 +1588,281 @@ Cache salvo em: config/pages_cache.json
                 
         except Exception as e:
             self.log_message(f"ERRO ao criar índice TXT: {str(e)}")
+
+    def extract_txt_with_images(self):
+        """Extrai conteúdo das páginas selecionadas como TXT e baixa suas imagens"""
+        if not self.client or not self.page_checkboxes:
+            self.log_message("ERRO: Carregue as páginas primeiro")
+            self.update_status("Carregue as páginas primeiro", "red")
+            return
+        
+        selected_pages = self.get_selected_pages()
+        if not selected_pages:
+            self.log_message("ERRO: Nenhuma página selecionada")
+            self.update_status("Nenhuma página selecionada", "red")
+            return
+            
+        self.extract_txt_images_btn.configure(state="disabled")
+        self.update_status("Extraindo TXT + Imagens...", "yellow")
+        self.content_textbox.delete("1.0", "end")
+        self.progress_bar.set(0)
+        
+        threading.Thread(target=self._extract_txt_images_worker, args=(selected_pages,), daemon=True).start()
+    
+    def _extract_txt_images_worker(self, selected_pages):
+        """Worker thread para extrair conteúdo TXT e baixar imagens"""
+        try:
+            page_titles = [page['title'] for page in selected_pages]
+            page_ids = [page['pageid'] for page in selected_pages]
+            total_pages = len(page_titles)
+            processed = 0
+            
+            self.log_message(f"Iniciando extração TXT + Imagens de {total_pages} páginas selecionadas...")
+            
+            # Criar diretório com timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = f"extracted_txt_images_{timestamp}"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Inicializar downloader de imagens
+            image_downloader = MediaWikiImageDownloader(self.client)
+            
+            def progress_callback(current_total, batch_size):
+                nonlocal processed
+                processed = current_total
+                progress = processed / (total_pages * 2) if total_pages > 0 else 0  # *2 porque temos texto + imagens
+                self.root.after(0, lambda: self.progress_bar.set(progress))
+                self.root.after(0, lambda: self.progress_label.configure(text=f"Extraindo: {processed}/{total_pages}"))
+            
+            # FASE 1: Extrair conteúdo de texto
+            self.log_message("📝 Fase 1: Extraindo conteúdo de texto...")
+            expand_templates = self.expand_templates_var.get()
+            
+            # Obter tanto wikitext quanto HTML para ter máxima cobertura de imagens
+            wikitext_contents = self.client.get_page_content_batch(
+                page_titles, 
+                callback=progress_callback, 
+                format_type='wikitext',
+                expand_templates=expand_templates
+            )
+            
+            # Processar resultados de texto
+            successful_txt = 0
+            failed_txt = 0
+            txt_content = {}
+            page_full_content = {}  # Para usar no download de imagens
+            
+            for i, (title, content) in enumerate(wikitext_contents.items()):
+                page_id = page_ids[i] if i < len(page_ids) else None
+                
+                # Extrair texto como na função original
+                text_content = ""
+                if isinstance(content, dict):
+                    text_content = content.get('wikitext', '') or content.get('markdown', '') or content.get('content', '') or str(content)
+                    page_full_content[title] = content  # Salvar conteúdo completo
+                elif isinstance(content, str):
+                    text_content = content
+                    page_full_content[title] = {'wikitext': content}
+                else:
+                    text_content = str(content)
+                    page_full_content[title] = {'wikitext': text_content}
+                
+                if text_content and text_content.strip():
+                    successful_txt += 1
+                    txt_content[title] = text_content
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 1)
+                else:
+                    failed_txt += 1
+                    if page_id:
+                        self.pages_cache.update_page_status(page_id, 0, "Conteúdo vazio")
+            
+            # Salvar arquivos TXT
+            if successful_txt > 0:
+                self.log_message(f"💾 Salvando {successful_txt} arquivos TXT...")
+                for title, content in txt_content.items():
+                    filename = self._sanitize_filename(title) + ".txt"
+                    filepath = os.path.join(output_dir, filename)
+                    
+                    try:
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.write(f"TÍTULO: {title}\n")
+                            f.write(f"FONTE: MediaWiki\n")
+                            f.write(f"DATA: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                            f.write(f"FORMATO: TXT + Imagens\n")
+                            f.write("=" * 50 + "\n\n")
+                            f.write(content)
+                    except Exception as e:
+                        self.log_message(f"ERRO ao salvar {filename}: {str(e)}")
+            
+            # FASE 2: Baixar imagens
+            self.log_message("🖼️ Fase 2: Baixando imagens das páginas...")
+            
+            total_images_found = 0
+            total_images_downloaded = 0
+            total_images_failed = 0
+            image_stats_by_page = {}
+            
+            for i, (title, full_content) in enumerate(page_full_content.items()):
+                # Atualizar progresso
+                progress = (total_pages + i + 1) / (total_pages * 2)
+                self.root.after(0, lambda p=progress: self.progress_bar.set(p))
+                self.root.after(0, lambda t=title: self.progress_label.configure(text=f"Baixando imagens: {t[:30]}..."))
+                
+                # Tentar obter também HTML para cobertura completa
+                try:
+                    html_content = self.client.get_page_content_html(title)
+                    if html_content and 'html' in html_content:
+                        full_content['html'] = html_content['html']
+                except:
+                    pass  # HTML opcional
+                
+                # Baixar imagens da página
+                stats = image_downloader.download_page_images(title, full_content, output_dir)
+                image_stats_by_page[title] = stats
+                
+                total_images_found += stats['total_found']
+                total_images_downloaded += stats['downloaded']
+                total_images_failed += stats['failed']
+            
+            # Salvar cache atualizado
+            self.pages_cache.save_cache()
+            
+            # Criar relatório completo
+            self._create_txt_images_index(output_dir, txt_content, image_stats_by_page)
+            
+            # Preparar relatório final
+            cache_stats = self.pages_cache.get_statistics()
+            
+            summary = [
+                f"=== EXTRAÇÃO TXT + IMAGENS CONCLUÍDA ===",
+                f"Páginas selecionadas: {total_pages}",
+                f"Texto extraído: {successful_txt}",
+                f"Falhas texto: {failed_txt}",
+                f"",
+                f"=== IMAGENS ===",
+                f"Imagens encontradas: {total_images_found}",
+                f"Imagens baixadas: {total_images_downloaded}",
+                f"Falhas download: {total_images_failed}",
+                f"",
+                f"=== PROGRESSO GERAL ===",
+                f"Total no cache: {cache_stats['total_pages']:,}",
+                f"Processadas: {cache_stats['processed_pages']:,}",
+                f"Pendentes: {cache_stats['pending_pages']:,}",
+                f"Progresso: {cache_stats['progress_percentage']:.1f}%",
+                f"",
+                f"✅ Arquivos salvos em: {output_dir}",
+                f"📄 {successful_txt} arquivos TXT",
+                f"🖼️ {total_images_downloaded} imagens",
+                f"📋 Veja RELATORIO_COMPLETO.txt para detalhes"
+            ]
+            
+            result_text = "\n".join(summary)
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
+            
+            # Status final
+            status_msg = f"TXT+IMG: {successful_txt}p/{total_images_downloaded}i | Cache: {cache_stats['progress_percentage']:.1f}%"
+            status_color = "green" if failed_txt == 0 and total_images_failed == 0 else "orange"
+            self.root.after(0, lambda: self.update_status(status_msg, status_color))
+            self.root.after(0, lambda: self.progress_bar.set(1.0))
+            
+            # Log
+            self.log_message(f"Extração TXT+Imagens completa: {successful_txt}/{total_pages} páginas, {total_images_downloaded} imagens")
+            
+            # Atualizar lista de páginas
+            self.root.after(0, self._create_cached_page_checkboxes)
+            
+        except Exception as e:
+            error_msg = f"ERRO na extração TXT+Imagens: {str(e)}"
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
+            self.root.after(0, lambda: self.update_status("Erro na extração TXT+Imagens", "red"))
+            self.log_message(error_msg)
+        finally:
+            self.root.after(0, lambda: self.extract_txt_images_btn.configure(state="normal"))
+            self.root.after(0, lambda: self.progress_label.configure(text=""))
+    
+    def _create_txt_images_index(self, output_dir, txt_content, image_stats):
+        """Cria relatório completo da extração TXT + Imagens"""
+        try:
+            report_path = os.path.join(output_dir, "RELATORIO_COMPLETO.txt")
+            
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write("RELATÓRIO COMPLETO - EXTRAÇÃO TXT + IMAGENS\n")
+                f.write("=" * 50 + "\n\n")
+                f.write(f"Data de extração: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                f.write(f"Diretório: {output_dir}\n")
+                f.write(f"Total de páginas: {len(txt_content)}\n\n")
+                
+                # Estatísticas gerais de imagens
+                total_found = sum(stats['total_found'] for stats in image_stats.values())
+                total_downloaded = sum(stats['downloaded'] for stats in image_stats.values())
+                total_failed = sum(stats['failed'] for stats in image_stats.values())
+                total_skipped = sum(stats['skipped'] for stats in image_stats.values())
+                
+                f.write("RESUMO DE IMAGENS:\n")
+                f.write("-" * 30 + "\n")
+                f.write(f"Imagens encontradas: {total_found}\n")
+                f.write(f"Imagens baixadas: {total_downloaded}\n")
+                f.write(f"Imagens que falharam: {total_failed}\n")
+                f.write(f"Imagens puladas: {total_skipped}\n")
+                f.write(f"Taxa de sucesso: {(total_downloaded / total_found * 100) if total_found > 0 else 0:.1f}%\n\n")
+                
+                # Detalhes por página
+                f.write("DETALHES POR PÁGINA:\n")
+                f.write("=" * 30 + "\n\n")
+                
+                for i, (title, stats) in enumerate(image_stats.items(), 1):
+                    filename = self._sanitize_filename(title) + ".txt"
+                    f.write(f"{i:3d}. {title}\n")
+                    f.write(f"     Arquivo TXT: {filename}\n")
+                    f.write(f"     Imagens encontradas: {stats['total_found']}\n")
+                    f.write(f"     Imagens baixadas: {stats['downloaded']}\n")
+                    
+                    if stats['failed'] > 0:
+                        f.write(f"     Falhas: {stats['failed']}\n")
+                    
+                    if stats['image_files']:
+                        f.write(f"     Arquivos: {', '.join(stats['image_files'][:3])}")
+                        if len(stats['image_files']) > 3:
+                            f.write(f" (e mais {len(stats['image_files']) - 3})")
+                        f.write("\n")
+                    
+                    f.write("\n")
+                
+                # Estrutura de diretórios
+                f.write("ESTRUTURA DE ARQUIVOS:\n")
+                f.write("-" * 30 + "\n")
+                f.write(f"{output_dir}/\n")
+                f.write("├── RELATORIO_COMPLETO.txt (este arquivo)\n")
+                f.write("├── INDICE.txt (índice dos arquivos TXT)\n")
+                
+                for title in txt_content.keys():
+                    filename = self._sanitize_filename(title) + ".txt"
+                    f.write(f"├── {filename}\n")
+                
+                f.write("└── images/\n")
+                for title in image_stats.keys():
+                    if image_stats[title]['image_files']:
+                        safe_title = self._sanitize_filename(title)
+                        f.write(f"    └── {safe_title}/\n")
+                        for img_file in image_stats[title]['image_files'][:2]:
+                            f.write(f"        ├── {img_file}\n")
+                        if len(image_stats[title]['image_files']) > 2:
+                            f.write(f"        └── ... (e mais {len(image_stats[title]['image_files']) - 2} arquivos)\n")
+                
+                f.write("\n" + "-" * 50 + "\n")
+                f.write("Gerado automaticamente pelo MediaWiki to BookStack Converter\n")
+                
+            # Criar também o índice TXT padrão
+            index_path = os.path.join(output_dir, "INDICE.txt")
+            self._create_txt_index(index_path, txt_content)
+            
+            self.log_message(f"📋 Relatório completo salvo em: {report_path}")
+            
+        except Exception as e:
+            self.log_message(f"ERRO ao criar relatório completo: {str(e)}")
 
     def list_all_pages(self):
         """Método legado - redireciona para refresh_pages_from_api"""
