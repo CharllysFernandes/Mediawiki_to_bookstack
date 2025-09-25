@@ -292,9 +292,6 @@ class MediaWikiApp:
         connected_buttons_frame = ctk.CTkFrame(pages_view)
         connected_buttons_frame.pack(fill="x", padx=20, pady=10)
         
-        self.list_prefixes_btn = ctk.CTkButton(connected_buttons_frame, text="Listar Prefixos", command=self.list_page_prefixes)
-        self.list_prefixes_btn.pack(side="left", padx=10, pady=10)
-        
         # Frame para botões de páginas
         pages_buttons_frame = ctk.CTkFrame(pages_view)
         pages_buttons_frame.pack(fill="x", padx=20, pady=5)
@@ -329,6 +326,12 @@ class MediaWikiApp:
                                                   command=self.extract_txt_with_images, 
                                                   fg_color="#7A2B7A", hover_color="#5f1f5f")
         self.extract_txt_images_btn.pack(side="left", padx=10, pady=10)
+        
+        # Novo botão para extrair JSON
+        self.extract_json_btn = ctk.CTkButton(extraction_buttons_frame, text="Extrair URLs JSON", 
+                                            command=self.extract_json_content, 
+                                            fg_color="#FF6B35", hover_color="#E55A2B")
+        self.extract_json_btn.pack(side="left", padx=10, pady=10)
         
         # Adicionar botão para salvar arquivos
         self.save_files_btn = ctk.CTkButton(extraction_buttons_frame, text="Salvar Wikitext", 
@@ -801,51 +804,6 @@ class MediaWikiApp:
                 self.root.after(0, lambda: self.log_message(error_msg))
             else:
                 self.log_message(error_msg)
-    
-    def list_page_prefixes(self):
-        """Lista os prefixos de páginas da wiki"""
-        if not self.client:
-            return
-            
-        self.list_prefixes_btn.configure(state="disabled")
-        self.update_status("Carregando prefixos...", "yellow")
-        self.content_textbox.delete("1.0", "end")
-        threading.Thread(target=self._list_prefixes_worker, daemon=True).start()
-        
-    def _list_prefixes_worker(self):
-        """Worker thread para listar prefixos"""
-        try:
-            self.log_message("Obtendo lista de namespaces/prefixos...")
-            
-            # Usar o método correto do client
-            prefixes = self.client.get_namespace_prefixes()
-            
-            if prefixes:
-                # Exibir na interface
-                result_text = "\n".join(prefixes)
-                self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
-                self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
-                self.root.after(0, lambda: self.update_status("Prefixos carregados", "green"))
-                
-                # Contar apenas os namespaces principais (não aliases)
-                main_count = len([p for p in prefixes if not p.startswith('    ')])
-                self.log_message(f"Encontrados {main_count} namespaces")
-                
-            else:
-                error_msg = "Nenhum namespace encontrado na wiki."
-                self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
-                self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
-                self.root.after(0, lambda: self.update_status("Nenhum prefixo encontrado", "orange"))
-                self.log_message("AVISO: Nenhum namespace retornado pela API")
-                
-        except Exception as e:
-            error_msg = f"ERRO ao listar prefixos: {str(e)}"
-            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
-            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
-            self.root.after(0, lambda: self.update_status("Erro ao carregar prefixos", "red"))
-            self.log_message(error_msg)
-        finally:
-            self.root.after(0, lambda: self.list_prefixes_btn.configure(state="normal"))
     
     def load_pages_cache(self):
         """Carrega páginas do cache local e exibe sistema de navegação simples"""
@@ -2042,6 +2000,491 @@ Cache salvo em: config/pages_cache.json
             
         except Exception as e:
             self.log_message(f"ERRO ao criar relatório completo: {str(e)}")
+
+    def extract_json_content(self):
+        """Extrai URLs de TODAS as páginas e salva como JSON"""
+        if not self.client or not self.page_checkboxes:
+            self.log_message("ERRO: Carregue as páginas primeiro")
+            self.update_status("Carregue as páginas primeiro", "red")
+            return
+
+        # Obter TODAS as páginas do cache, não apenas as selecionadas
+        all_pages = self._get_filtered_pages()
+        if not all_pages:
+            self.log_message("ERRO: Nenhuma página encontrada no cache")
+            self.update_status("Nenhuma página encontrada no cache", "red")
+            return
+
+        self.extract_json_btn.configure(state="disabled")
+        self.update_status("Extraindo URLs como JSON...", "yellow")
+        self.content_textbox.delete("1.0", "end")
+        self.progress_bar.set(0)
+
+        threading.Thread(target=self._extract_json_worker, args=(all_pages,), daemon=True).start()
+
+    def _extract_json_worker(self, all_pages):
+        """Worker thread para extrair URLs como JSON"""
+        try:
+            total_pages = len(all_pages)
+            processed = 0
+
+            self.log_message(f"Iniciando extração JSON de URLs de {total_pages} páginas...")
+
+            def progress_callback(current_total, batch_size):
+                nonlocal processed
+                processed = current_total
+                progress = processed / total_pages if total_pages > 0 else 0
+                self.root.after(0, lambda: self.progress_bar.set(progress))
+                self.root.after(0, lambda: self.progress_label.configure(text=f"Processando URLs: {processed}/{total_pages}"))
+
+            # Processar todas as páginas para gerar URLs
+            successful = 0
+            failed = 0
+            json_data = {}
+            failed_details = []
+
+            for i, page in enumerate(all_pages):
+                try:
+                    page_title = page['title']
+                    page_id = page.get('pageid')
+
+                    # Preparar dados da página para JSON com URL
+                    page_data = {
+                        'title': page_title,
+                        'pageid': page_id,
+                        'timestamp': datetime.now().isoformat(),
+                        'source': 'MediaWiki',
+                        'format': 'JSON_URL'
+                    }
+
+                    # Gerar URL da página (usando a URL base da wiki configurada)
+                    try:
+                        # Obter URL base da wiki das configurações
+                        config = self.config_manager.load_config()
+                        wiki_url = config.get('api_url', '')
+
+                        if wiki_url:
+                            # Limpar URL base (remover /api.php se existir)
+                            if '/api.php' in wiki_url:
+                                base_url = wiki_url.replace('/api.php', '')
+                            else:
+                                base_url = wiki_url.rstrip('/')
+
+                            # Codificar o título da página para URL
+                            import urllib.parse
+                            encoded_title = urllib.parse.quote(page_title.replace(' ', '_'))
+
+                            # Gerar URL completa da página
+                            page_url = f"{base_url}/index.php/{encoded_title}"
+
+                            page_data['url'] = page_url
+                            page_data['url_type'] = 'direct_link'
+                            successful += 1
+                        else:
+                            # Se não há URL base configurada, usar título como referência
+                            page_data['url'] = f"wiki:{page_title}"
+                            page_data['url_type'] = 'reference_only'
+                            page_data['note'] = 'URL base da wiki não configurada'
+                            successful += 1
+
+                    except Exception as url_error:
+                        # Se falhar ao gerar URL, marcar como erro
+                        page_data['url'] = f"error:{page_title}"
+                        page_data['url_type'] = 'error'
+                        page_data['error'] = str(url_error)
+                        failed += 1
+                        failed_details.append(f"❌ Erro ao gerar URL para '{page_title}': {str(url_error)}")
+                        self.log_message(f"Erro ao gerar URL para '{page_title}': {str(url_error)}")
+
+                    # Adicionar metadados se disponíveis
+                    if 'categories' in page:
+                        page_data['categories'] = page['categories']
+                    if 'last_modified' in page:
+                        page_data['last_modified'] = page['last_modified']
+                    if 'status' in page:
+                        page_data['extraction_status'] = page['status']
+
+                    # Adicionar à estrutura JSON
+                    json_data[page_title] = page_data
+
+                    # Atualizar progresso
+                    progress_callback(i + 1, 1)
+
+                except Exception as e:
+                    failed += 1
+                    error_msg = f"Erro geral ao processar '{page.get('title', 'Página desconhecida')}': {str(e)}"
+                    failed_details.append(f"❌ {error_msg}")
+                    self.log_message(error_msg)
+
+            # Salvar cache atualizado (não necessário para URLs, mas manter compatibilidade)
+            self.pages_cache.save_cache()
+
+            # Salvar arquivo JSON automaticamente
+            if successful > 0:
+                self._save_json_file(json_data)
+
+            # Preparar relatório
+            stats = self.pages_cache.get_statistics()
+
+            summary = [
+                f"=== EXTRAÇÃO JSON DE URLs CONCLUÍDA ===",
+                f"Total de páginas processadas: {total_pages}",
+                f"URLs geradas com sucesso: {successful}",
+                f"Falharam: {failed}",
+                f"",
+                f"=== PROGRESSO GERAL ===",
+                f"Total no cache: {stats['total_pages']:,}",
+                f"Progresso: {stats['progress_percentage']:.1f}%",
+                ""
+            ]
+
+            # Adicionar detalhes de falhas se houver
+            if failed_details:
+                summary.append("=== PÁGINAS COM ERRO ===")
+                summary.extend(failed_details[:10])  # Mostrar até 10 erros
+                if len(failed_details) > 10:
+                    summary.append(f"... e mais {len(failed_details) - 10} erros")
+                summary.append("")
+
+            if successful > 0:
+                summary.append("✅ URLs processadas foram salvas no JSON")
+                summary.append(f"📄 Arquivo JSON salvo automaticamente")
+                summary.append(f"� {successful} URLs incluídas no JSON")
+
+            result_text = "\n".join(summary)
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", result_text))
+
+            # Status final
+            status_msg = f"URLs: {successful}/{total_pages} | Cache: {stats['progress_percentage']:.1f}%"
+            status_color = "green" if failed == 0 else "orange"
+            self.root.after(0, lambda: self.update_status(status_msg, status_color))
+            self.root.after(0, lambda: self.progress_bar.set(1.0))
+
+            # Log
+            self.log_message(f"Extração JSON de URLs completa: {successful}/{total_pages} páginas processadas")
+
+            # Atualizar lista de páginas
+            self.root.after(0, self._create_cached_page_checkboxes)
+
+        except Exception as e:
+            error_msg = f"ERRO na extração JSON de URLs: {str(e)}"
+            self.root.after(0, lambda: self.content_textbox.delete("1.0", "end"))
+            self.root.after(0, lambda: self.content_textbox.insert("1.0", error_msg))
+            self.root.after(0, lambda: self.update_status("Erro na extração JSON", "red"))
+            self.log_message(error_msg)
+        finally:
+            self.root.after(0, lambda: self.extract_json_btn.configure(state="normal"))
+            self.root.after(0, lambda: self.progress_label.configure(text=""))
+
+    def _save_json_file(self, json_data):
+        """Salva automaticamente o arquivo JSON extraído"""
+        try:
+            import json
+            import os
+
+            # Criar diretório para o arquivo
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = f"extracted_json_{timestamp}"
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Nome do arquivo JSON
+            json_filename = f"mediawiki_pages_{timestamp}.json"
+            json_filepath = os.path.join(output_dir, json_filename)
+
+            # Preparar dados para JSON com metadados
+            json_output = {
+                'metadata': {
+                    'extraction_date': datetime.now().isoformat(),
+                    'total_pages': len(json_data),
+                    'source': 'MediaWiki to BookStack Converter',
+                    'format_version': '1.0'
+                },
+                'pages': json_data
+            }
+
+            # Salvar arquivo JSON
+            with open(json_filepath, 'w', encoding='utf-8') as f:
+                json.dump(json_output, f, ensure_ascii=False, indent=2)
+
+            # Criar arquivo de índice
+            index_path = os.path.join(output_dir, "README.md")
+            self._create_json_index(index_path, json_data)
+
+            # Fazer download automático do arquivo
+            self._download_json_file(json_filepath)
+
+            # Adicionar botão para abrir URLs no navegador
+            self._add_open_urls_button(json_filepath)
+
+            self.log_message(f"✅ Arquivo JSON salvo: {json_filepath}")
+            self.log_message(f"📄 {len(json_data)} páginas exportadas para JSON")
+
+        except Exception as e:
+            self.log_message(f"ERRO ao salvar arquivo JSON: {str(e)}")
+
+    def _create_json_index(self, index_path, json_data):
+        """Cria arquivo de índice para o JSON extraído"""
+        try:
+            successful_pages = [title for title, data in json_data.items()
+                              if data.get('content') and data.get('content_type') != 'error']
+
+            failed_pages = [title for title, data in json_data.items()
+                           if not data.get('content') or data.get('content_type') == 'error']
+
+            index_md = f"""# 📊 Relatório de Extração JSON - MediaWiki to BookStack
+
+**Data da extração:** {datetime.now().strftime("%d/%m/%Y às %H:%M")}  
+**Total de páginas:** {len(json_data)}  
+**URLs geradas:** {len(successful_pages)}  
+**Páginas com erro:** {len(failed_pages)}  
+
+---
+
+## 📋 Informações Gerais
+
+- **Formato:** JSON com URLs
+- **Estrutura:** Metadados + Array de páginas com URLs
+- **Codificação:** UTF-8
+- **Compatibilidade:** Pode ser usado para navegação ou importação
+
+## 📄 Estrutura do Arquivo JSON
+
+```json
+{{
+  "metadata": {{
+    "extraction_date": "{datetime.now().isoformat()}",
+    "total_pages": {len(json_data)},
+    "source": "MediaWiki to BookStack Converter",
+    "format_version": "1.0"
+  }},
+  "pages": {{
+    "Título da Página": {{
+      "title": "Título da Página",
+      "pageid": 12345,
+      "url": "https://wiki.exemplo.com/index.php/Título_da_Página",
+      "url_type": "direct_link",
+      "timestamp": "{datetime.now().isoformat()}",
+      "categories": ["Categoria 1", "Categoria 2"]
+    }}
+  }}
+}}
+```
+
+---
+
+## ✅ Páginas com URLs Geradas
+
+"""
+
+            if successful_pages:
+                for i, title in enumerate(successful_pages, 1):
+                    page_data = json_data[title]
+                    url_type = page_data.get('url_type', 'unknown')
+                    url = page_data.get('url', 'N/A')
+
+                    index_md += f"### {i}. {title}\n\n"
+                    index_md += f"- **Tipo de URL:** {url_type}\n"
+                    index_md += f"- **URL:** {url}\n"
+                    index_md += f"- **ID da página:** {page_data.get('pageid', 'N/A')}\n"
+
+                    if page_data.get('categories'):
+                        index_md += f"- **Categorias:** {', '.join(page_data['categories'])}\n"
+
+                    index_md += "\n"
+            else:
+                index_md += "*Nenhuma página foi extraída com sucesso.*\n\n"
+
+            # Adicionar seção de erros se houver
+            if failed_pages:
+                index_md += "---\n\n## ❌ Páginas com Erro\n\n"
+
+                for i, title in enumerate(failed_pages[:20], 1):  # Mostrar até 20 erros
+                    page_data = json_data[title]
+                    error_info = page_data.get('content', 'Erro desconhecido')
+                    index_md += f"{i}. **{title}**: {error_info}\n"
+
+                if len(failed_pages) > 20:
+                    index_md += f"\n*... e mais {len(failed_pages) - 20} páginas com erro*\n"
+
+            index_md += f"""
+
+---
+
+## 📁 Arquivos Gerados
+
+- `mediawiki_pages_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json` - Arquivo JSON principal
+- `README.md` - Este arquivo de documentação
+
+## 💡 Como Usar o Arquivo JSON
+
+### Importar em Python:
+```python
+import json
+
+with open('mediawiki_pages_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+# Acessar páginas e URLs
+pages = data['pages']
+for title, page_data in pages.items():
+    print(f"Título: {{title}}")
+    print(f"URL: {{page_data['url']}}")
+    print(f"Tipo de URL: {{page_data['url_type']}}")
+```
+
+### Importar em JavaScript/Node.js:
+```javascript
+const fs = require('fs');
+
+fs.readFile('mediawiki_pages_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json', 'utf8', (err, data) => {{
+    const jsonData = JSON.parse(data);
+    const pages = jsonData.pages;
+    
+    Object.keys(pages).forEach(title => {{
+        console.log(`Título: ${{title}}`);
+        console.log(`URL: ${{pages[title].url}}`);
+        console.log(`Tipo de URL: ${{pages[title].url_type}}`);
+    }});
+}});
+```
+
+### Abrir URLs no navegador:
+```python
+import json
+import webbrowser
+
+with open('mediawiki_pages_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+# Abrir primeiras 5 páginas no navegador
+pages = data['pages']
+count = 0
+for title, page_data in pages.items():
+    if count >= 5:
+        break
+    if page_data.get('url_type') == 'direct_link':
+        webbrowser.open(page_data['url'])
+        count += 1
+```
+
+---
+
+*Relatório gerado automaticamente pelo MediaWiki to BookStack Converter*
+"""
+
+            with open(index_path, 'w', encoding='utf-8') as f:
+                f.write(index_md)
+
+        except Exception as e:
+            self.log_message(f"ERRO ao criar índice JSON: {str(e)}")
+
+    def _download_json_file(self, filepath):
+        """Faz download do arquivo JSON (abre o explorador de arquivos)"""
+        try:
+            import platform
+            import subprocess
+
+            # Obter diretório do arquivo
+            file_dir = os.path.dirname(filepath)
+            file_name = os.path.basename(filepath)
+
+            if platform.system() == "Windows":
+                # Abrir explorador de arquivos no Windows
+                subprocess.run(["explorer", "/select,", filepath], check=False)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", "-R", filepath], check=False)
+            else:  # Linux
+                subprocess.run(["xdg-open", file_dir], check=False)
+
+            self.log_message(f"📂 Explorador de arquivos aberto na pasta do JSON: {file_dir}")
+
+        except Exception as e:
+            self.log_message(f"ERRO ao abrir explorador de arquivos: {str(e)}")
+            self.log_message(f"Arquivo JSON salvo em: {filepath}")
+
+    def _add_open_urls_button(self, json_filepath):
+        """Adiciona botão para abrir URLs no navegador"""
+        try:
+            # Criar botão na interface principal
+            if hasattr(self, 'open_urls_btn'):
+                self.open_urls_btn.destroy()
+
+            self.open_urls_btn = ctk.CTkButton(
+                self.extraction_buttons_frame,
+                text="🌐 Abrir URLs no Navegador",
+                command=lambda: self._open_urls_in_browser(json_filepath),
+                fg_color="#FF6B35",
+                hover_color="#E55A2B",
+                height=35
+            )
+            self.open_urls_btn.pack(side="left", padx=10, pady=10)
+
+            self.log_message("✅ Botão 'Abrir URLs no Navegador' adicionado")
+
+        except Exception as e:
+            self.log_message(f"ERRO ao adicionar botão de URLs: {str(e)}")
+
+    def _open_urls_in_browser(self, json_filepath):
+        """Abre as URLs do JSON no navegador"""
+        try:
+            import json
+            import webbrowser
+            import time
+
+            # Carregar arquivo JSON
+            with open(json_filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            pages = data.get('pages', {})
+            total_urls = len(pages)
+
+            if total_urls == 0:
+                self.log_message("❌ Nenhuma URL encontrada no arquivo JSON")
+                return
+
+            self.log_message(f"🌐 Abrindo {total_urls} URLs no navegador...")
+
+            # Abrir URLs no navegador (limitado para não sobrecarregar)
+            max_urls = min(total_urls, 10)  # Máximo 10 URLs por vez
+            opened_count = 0
+
+            for title, page_data in list(pages.items())[:max_urls]:
+                url = page_data.get('url')
+                url_type = page_data.get('url_type')
+
+                if url and url_type == 'direct_link':
+                    try:
+                        webbrowser.open(url)
+                        opened_count += 1
+                        self.log_message(f"✅ Aberto: {title}")
+                        time.sleep(0.5)  # Pequena pausa entre aberturas
+                    except Exception as e:
+                        self.log_message(f"❌ Erro ao abrir {title}: {str(e)}")
+
+            if opened_count > 0:
+                self.log_message(f"🎯 {opened_count} URLs abertas no navegador")
+                if total_urls > max_urls:
+                    self.log_message(f"ℹ️ Mostrando apenas as primeiras {max_urls} URLs de {total_urls} disponíveis")
+            else:
+                self.log_message("❌ Nenhuma URL válida encontrada para abrir")
+
+        except Exception as e:
+            self.log_message(f"ERRO ao abrir URLs: {str(e)}")
+
+    def open_single_url(self, url, title=""):
+        """Abre uma única URL no navegador"""
+        try:
+            import webbrowser
+
+            if url and url.startswith(('http://', 'https://')):
+                webbrowser.open(url)
+                self.log_message(f"🌐 URL aberta: {title or url}")
+            else:
+                self.log_message(f"❌ URL inválida: {url}")
+
+        except Exception as e:
+            self.log_message(f"ERRO ao abrir URL: {str(e)}")
 
     def list_all_pages(self):
         """Método legado - redireciona para refresh_pages_from_api"""

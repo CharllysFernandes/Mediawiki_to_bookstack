@@ -259,45 +259,6 @@ class MediaWikiClient:
         response = self._make_request(params)
         return response.get('query', {}).get('namespaces', {})
     
-    def get_namespace_prefixes(self):
-        """Obtém prefixos de namespaces formatados para exibição"""
-        try:
-            namespaces = self.get_namespaces()
-            prefixes = []
-            
-            # Ordenar por ID para melhor visualização
-            sorted_ns = sorted(namespaces.items(), key=lambda x: int(x[0]))
-            
-            for ns_id, ns_data in sorted_ns:
-                ns_id = int(ns_id)
-                name = ns_data.get('name', '')
-                canonical = ns_data.get('canonical', '')
-                
-                # Namespace principal (ID 0) tem nome vazio
-                if ns_id == 0:
-                    prefixes.append(f"ID {ns_id}: (Principal/Artigos)")
-                elif name:
-                    prefixes.append(f"ID {ns_id}: {name}")
-                else:
-                    prefixes.append(f"ID {ns_id}: (Sem nome)")
-                
-                # Adicionar informações extras se disponíveis
-                extras = []
-                if canonical and canonical != name:
-                    extras.append(f"Canônico: {canonical}")
-                
-                if 'aliases' in ns_data and ns_data['aliases']:
-                    for alias in ns_data['aliases']:
-                        extras.append(f"Alias: {alias}")
-                
-                for extra in extras:
-                    prefixes.append(f"    └─ {extra}")
-            
-            return prefixes
-            
-        except Exception as e:
-            raise Exception(f"Erro ao obter prefixos: {str(e)}")
-    
     def get_page_content(self, page_title):
         """Obtém conteúdo de uma página específica"""
         params = {
