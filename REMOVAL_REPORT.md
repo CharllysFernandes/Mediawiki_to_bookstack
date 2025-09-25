@@ -1,58 +1,80 @@
-# Remoção da Funcionalidade list_page_prefixes
+# Relatório de Remoções - MediaWiki to BookStack
 
 ## 🔧 Alterações Realizadas
 
-### ✅ **Arquivos Modificados:**
+### ✅ **1. Remoção da Funcionalidade `list_page_prefixes`**
 
-#### 1. **main.py**
+#### **Arquivos Modificados:**
+- **main.py**: Removido botão "Listar Prefixos" e métodos relacionados
+- **src/mediawiki_client.py**: Removido método `get_namespace_prefixes()`
 
-- ❌ Removido botão "Listar Prefixos" da interface
-- ❌ Removido método `list_page_prefixes()`
-- ❌ Removido método `_list_prefixes_worker()`
-- ✅ Interface simplificada e mais focada
+#### **Justificativa**: Com o novo sistema de cache, listar prefixos não agrega valor
 
-#### 2. **src/mediawiki_client.py**
+---
 
-- ❌ Removido método `get_namespace_prefixes()`
-- ✅ Cliente mais enxuto e eficiente
+### ✅ **2. Remoção da Funcionalidade `extract_markdown_content`**
 
-### 🎯 **Justificativa da Remoção:**
+#### **Arquivos Modificados:**
+- **main.py**: 
+  - ❌ Removido botão "Extrair Markdown" da interface
+  - ❌ Removido método `extract_markdown_content()`
+  - ❌ Removido método `_extract_markdown_worker()`
+  - ❌ Removido método `_save_markdown_files()`
+  - 🔄 Renomeado `_create_markdown_index()` para `_create_index()` (uso genérico)
 
-1. **Funcionalidade Desnecessária**: Com o novo sistema de cache, listar prefixos não agrega valor
-2. **Interface Mais Limpa**: Menos botões = interface mais focada
-3. **Performance**: Menos código = aplicação mais rápida
-4. **Manutenibilidade**: Menos código = menos bugs potenciais
+### 🎯 **Justificativa da Remoção do Extract Markdown:**
+
+1. **Funcionalidade Redundante**: O sistema já possui "Extrair Pendentes" que funciona perfeitamente
+2. **Interface Mais Limpa**: Menos opções confusas para o usuário
+3. **Código Mais Enxuto**: ~150+ linhas de código removidas
+4. **Foco na Funcionalidade Principal**: Wikitext é o formato principal do MediaWiki
 
 ### 🚀 **Estado Atual da Interface:**
 
-**Botões Restantes (Essenciais):**
-
+**Botões Essenciais Mantidos:**
 - ✅ Carregar Cache
-- ✅ Atualizar da API
-- ✅ Extrair Pendentes
-- ✅ Extrair Markdown
+- ✅ Atualizar da API  
+- ✅ Extrair Pendentes (principal)
 - ✅ Extrair TXT
 - ✅ Extrair TXT + Imagens
 - ✅ Extrair URLs JSON
 - ✅ Salvar Wikitext
 
-### 📊 **Impacto:**
+### 📊 **Impacto Total:**
 
-- **Linhas Removidas**: ~55 linhas de código
+#### **Funcionalidade `list_page_prefixes`:**
+- **Linhas Removidas**: ~55 linhas
 - **Métodos Removidos**: 2 métodos principais
-- **Botões Removidos**: 1 botão da interface
-- **Funcionalidade**: Sem perda de funcionalidade essencial
-- **Performance**: Interface mais responsiva
+- **Botões Removidos**: 1 botão
+
+#### **Funcionalidade `extract_markdown_content`:**
+- **Linhas Removidas**: ~150+ linhas  
+- **Métodos Removidos**: 3 métodos principais
+- **Botões Removidos**: 1 botão
+
+#### **Total Geral:**
+- **Linhas Removidas**: ~205+ linhas de código
+- **Métodos Removidos**: 5 métodos principais
+- **Botões Removidos**: 2 botões da interface
+- **Funcionalidade**: Interface mais focada e eficiente
+- **Performance**: Aplicação mais rápida e responsiva
 
 ### ✅ **Testes Realizados:**
 
 - [x] Compilação do main.py - ✅ Sucesso
-- [x] Compilação do mediawiki_client.py - ✅ Sucesso
+- [x] Compilação do mediawiki_client.py - ✅ Sucesso  
 - [x] Import do módulo principal - ✅ Sucesso
 - [x] Verificação de referências órfãs - ✅ Nenhuma encontrada
 
 ### 🎯 **Resultado Final:**
 
-A funcionalidade `list_page_prefixes` foi completamente removida do projeto sem afetar nenhuma funcionalidade essencial. O aplicativo agora tem uma interface mais limpa e focada nas operações principais de extração e gerenciamento de páginas.
+Ambas as funcionalidades (`list_page_prefixes` e `extract_markdown_content`) foram completamente removidas do projeto sem afetar nenhuma funcionalidade essencial. 
 
-**A remoção é segura e melhora a experiência do usuário ao reduzir opções desnecessárias.**
+**Benefícios:**
+- Interface mais limpa e focada
+- Código mais maintível
+- Performance melhorada  
+- Experiência do usuário simplificada
+- Foco nas funcionalidades principais
+
+**A aplicação agora está mais enxuta e eficiente, mantendo todas as funcionalidades essenciais para extrair e gerenciar páginas do MediaWiki.**
